@@ -1,6 +1,13 @@
+#!/usr/bin/env python
 
-from plex import Scanner, Lexicon, Str, State, IGNORE, Begin, Any, AnyChar, Range, Rep
+try:
+    import json
+except:
+    import simplejson as json
+import sys
 import cStringIO
+import optparse
+from plex import Scanner, Lexicon, Str, State, IGNORE, Begin, Any, AnyChar, Range, Rep
 
 letter = Range("AZaz")
 digit = Range("09")
@@ -8,6 +15,7 @@ under = Str("_")
 ident = letter + Rep(letter | digit | under)
 arr_ident = Str("[]") + ident
 space = Any(" \t\n\r")
+comment = Str("// ") | Str("//")
 
 class IdlParseException(Exception):
 
@@ -64,7 +72,7 @@ class IdlScanner(Scanner):
         self.begin("fields")
 
     def begin_function(self, text):
-        self.function = { "name" : text, "params" : [ ] }
+        self.function = { "name" : text, "comment" : self.get_comment(), "params" : [ ] }
         self.begin("function-start")
 
     def begin_param(self, text):
@@ -85,7 +93,31 @@ class IdlScanner(Scanner):
 
     def end_value(self, text):
         if not text in self.cur["values"]:
-            self.cur["values"].append(text)
+            val = { "value" : text, "comment" : self.get_comment() }
+            self.last_comment = ""
+            self.cur["values"].append(val)
+
+    def get_comment(self):
+        comment = ""
+        if self.comment and len(self.comment) > 0:
+            comment = "".join(self.comment)
+        self.comment = None
+        return comment
+
+    def start_comment(self, text):
+        if self.comment:
+            self.comment.append("\n")
+        else:
+            self.comment = []
+        self.prev_state = self.state_name
+        self.begin("comment")
+
+    def append_comment(self, text):
+        self.comment.append(text)
+
+    def end_comment(self, text):
+        self.begin(self.prev_state)
+        self.prev_state = None
 
     lex = Lexicon([
             (space,      IGNORE),
@@ -107,7 +139,6 @@ class IdlScanner(Scanner):
             State('start-block', [
                     (space, IGNORE),
                     (Str('{'), start_block) ]),
-                    
             State('fields', [
                     (ident,    begin_field),
                     (space,    IGNORE),
@@ -123,6 +154,7 @@ class IdlScanner(Scanner):
             State('functions', [
                     (ident,    begin_function),
                     (space,    IGNORE),
+                    (comment,  start_comment),
                     (Str('{'), 'invalid'),
                     (Str('}'), end_block) ]),
             State('function-start', [
@@ -151,14 +183,19 @@ class IdlScanner(Scanner):
             State('values', [
                     (ident,    end_value),
                     (space,    IGNORE),
+                    (comment,  start_comment),
                     (Str('{'), 'invalid'),
-                    (Str('}'), end_block) ])
+                    (Str('}'), end_block) ]),
+            State('comment', [
+                    (Str("\n"),     end_comment),
+                    (AnyChar, append_comment) ])
             ])
 
     def __init__(self, f, name):
         Scanner.__init__(self, self.lex, f, name)
         self.parsed = [ ]
         self.errors = [ ]
+        self.comment = None
         self.cur = None
 
     def parse(self):
@@ -171,12 +208,28 @@ class IdlScanner(Scanner):
                 break
 
 
-def parse_str(idl):
+def parse_str(idl, name=""):
     reader = cStringIO.StringIO(idl)
-    scanner = IdlScanner(reader, "")
+    return parse(reader, name)
+
+def parse(reader, name):
+    scanner = IdlScanner(reader, name)
     scanner.parse()
     if len(scanner.errors) == 0:
         return scanner.parsed
     else:
         raise IdlParseException(scanner.errors)
     
+if __name__ == "__main__":
+    parser = optparse.OptionParser("usage: %prog [options] [idl filename]")
+    parser.add_option("-i", "--stdin", dest="stdin", action="store_true",
+                      default=False, help="Read IDL from STDIN")
+    (options, args) = parser.parse_args()
+    if options.stdin:
+        print json.dumps(parse_str(sys.stdin.read()))
+    elif len(args) < 1:
+        parser.error("Incorrect number of args")
+    else:
+        f = open(args[0])
+        print json.dumps(parse(f, args[0]))
+        f.close()
