@@ -175,6 +175,16 @@ struct Location {
                          { "line": 0, "message" : "cycle detected in: struct Location" } ]
             self.assertEquals(expected, e.errors)
 
+    def test_cycle_detection(self):
+        idl = """struct Book {
+    author string
+}
+struct TaskResult {
+    toLoan []Book
+    toAck  []Book
+}"""
+        parse_str(idl)
+
     def test_interface_cant_be_field_type(self):
         idl = """struct Animal {
     svc FooService
