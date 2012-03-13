@@ -358,12 +358,37 @@ if __name__ == "__main__":
     parser = optparse.OptionParser("usage: %prog [options] [idl filename]")
     parser.add_option("-i", "--stdin", dest="stdin", action="store_true",
                       default=False, help="Read IDL from STDIN")
+    parser.add_option("-d", "--docco", dest="docco",
+                      default=None, type="string",
+                      help="Generate docco HTML and save to this filename")
+    parser.add_option("-t", "--title", dest="title",
+                      default=None, type="string",
+                      help="title to use in generated HTML")
+    parser.add_option("-j", "--json", dest="json",
+                      default=None, type="string",
+                      help="File to write contract JSON to (defaults to STDOUT)")
     (options, args) = parser.parse_args()
+
     if options.stdin:
-        print json.dumps(parse_str(sys.stdin.read()))
+        parsed = parse_str(sys.stdin.read())
     elif len(args) < 1:
         parser.error("Incorrect number of args")
     else:
         f = open(args[0])
-        print json.dumps(parse(f, args[0]))
+        parsed = parse(f, args[0])
         f.close()
+
+    if options.docco:
+        import gen_docco
+        sections = gen_docco.to_sections(parsed)
+        f = open(options.docco, "w")
+        f.write(gen_docco.to_html(options.title, sections))
+        f.close()
+
+    if options.json:
+        f = open(options.json, "w")
+        f.write(json.dumps(parsed))
+        f.close()
+    else:
+        print json.dumps(parsed)
+        
