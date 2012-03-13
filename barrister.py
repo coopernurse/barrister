@@ -34,15 +34,18 @@ class IdlScanner(Scanner):
         self.errors.append({"line": line, "message": message})
 
     def begin_struct(self, text):
-        self.cur = { "name" : text, "type" : "struct", "fields" : [] }
+        self.cur = { "name" : text, "type" : "struct", 
+                     "comment" : self.get_comment(), "fields" : [] }
         self.begin('start-block')
 
     def begin_enum(self, text):
-        self.cur = { "name" : text, "type" : "enum", "values" : [] }
+        self.cur = { "name" : text, "type" : "enum", 
+                     "comment" : self.get_comment(), "values" : [] }
         self.begin('start-block')
 
     def begin_interface(self, text):
-        self.cur = { "name" : text, "type" : "interface", "functions" : [] }
+        self.cur = { "name" : text, "type" : "interface", 
+                     "comment" : self.get_comment(), "functions" : [] }
         self.begin('start-block')
 
     def start_block(self, text):
@@ -124,6 +127,7 @@ class IdlScanner(Scanner):
             (Str('struct '),   Begin('struct-start')),
             (Str('enum '),   Begin('enum-start')),
             (Str('interface '),   Begin('interface-start')),
+            (comment,    start_comment),
             State('struct-start', [
                     (ident,    begin_struct),
                     (space,    IGNORE),
