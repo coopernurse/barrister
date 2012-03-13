@@ -258,7 +258,9 @@ class IdlScanner(Scanner):
                 self.add_error(t)
                 break
 
-    def validate_type(self, cur_type, types):
+    def validate_type(self, cur_type, types, level):
+        level += 1
+
         if cur_type.find("[]") == 0:
             cur_type = cur_type[2:]
 
@@ -269,24 +271,27 @@ class IdlScanner(Scanner):
         else:
             cur = self.types[cur_type]
             if cur_type in types:
-                self.add_error("cycle detected in: %s %s" % (cur["type"], cur["name"]), 
-                               line=0)
+                msg = "cycle detected in: %s %s" % (cur["type"], cur["name"])
+                self.add_error(msg, line=0)
             else:
                 types.append(cur_type)
                 if cur["type"] == "struct":
                     if cur["extends"] != "":
-                        self.validate_type(cur["extends"], types)
+                        self.validate_type(cur["extends"], types, level)
                     for f in cur["fields"]:
-                        self.validate_type(f["type"], types)
+                        self.validate_type(f["type"], types, level)
                 elif cur["type"] == "interface":
                     # interface types must be top-level, so if len(types) > 1, we
                     # know this interface was used as a type in a function or struct
-                    if len(types) > 1:
-                        self.add_error("interface %s cannot be a field type" % cur["name"], line=0)
-                    for f in cur["functions"]:
-                        for p in f["params"]:
-                            self.validate_type(p["type"], types)
-                        self.validate_type(f["returns"], types)
+                    if level > 1:
+                        msg = "interface %s cannot be a field type" % cur["name"]
+                        self.add_error(msg, line=0)
+                    else:
+                        for f in cur["functions"]:
+                            types = [ ]
+                            for p in f["params"]:
+                                self.validate_type(p["type"], types, 1)
+                            self.validate_type(f["returns"], types, 1)
 
     def add_parent_fields(self, s, names, types):
         if s["extends"] in native_types:
@@ -312,7 +317,7 @@ class IdlScanner(Scanner):
 
     def validate(self):
         for t in self.parsed:
-            self.validate_type(t["name"], [])
+            self.validate_type(t["name"], [], 0)
             if t["type"] == "struct":
                 self.validate_struct_extends(t)
 

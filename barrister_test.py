@@ -278,5 +278,32 @@ struct Animal extends Status {
             expected = [ { "line": 1, "message" : "Status must have at least one value" } ]
             self.assertEquals(expected, e.errors)        
 
+    def test_cycle_detection_for_interfaces(self):
+        idl = """struct BaseResponse {
+    status int
+}
+interface FooService {
+    add(a int, b int) BaseResponse
+    subtract(a int, b int) BaseResponse
+}"""
+        # should work - cycle detection should reset per function
+        parse_str(idl)
+
+    def test_interface_cant_be_param(self):
+        idl = """interface BlargService {
+    do_stuff() int
+}
+interface FooService {
+    add(a int, b BlargService) float
+    subtract(a int, b int) BlargService
+}"""
+        try:
+            parse_str(idl)
+            self.fail("should have thrown exception")
+        except IdlParseException as e:
+            expected = [ { "line": 0, "message" : "interface BlargService cannot be a field type" },
+                         { "line": 0, "message" : "interface BlargService cannot be a field type" } ]
+            self.assertEquals(expected, e.errors)        
+
 if __name__ == "__main__":
     unittest.main()
