@@ -65,7 +65,7 @@ def parse_enum(enum):
         code += '    <span class="nv">%s</span>\n' % v['value']
     code += "}"
 
-    return docs, code
+    return to_section(docs, code)
 
 def parse_struct(s):
     docs = s['comment']
@@ -90,40 +90,47 @@ def parse_struct(s):
         code += '    <span class="nv">%s</span>%s<span class="kt">%s</span>\n' % (v['name'], pad[:x], v['type'])
     code += "}"
 
-    return docs, code
+    return to_section(docs, code)
 
 def parse_interface(iface):
+    sections = [ ]
     docs = iface['comment']
     code = '<span class="k">interface</span> <span class="gs">%s</span> {\n' % iface['name']
     for v in iface["functions"]:
-        if v.has_key('comment') and v['comment']:
-            for line in v['comment'].split("\n"):
-                code += '    <span class="c1">// %s</span>\n' % line
-        code += '    <span class="nf">%s</span>(' % v['name']
+        func_code = '    <span class="nf">%s</span>(' % v['name']
         i = 0
         for p in v["params"]:
             if i == 0: i = 1
-            else: code += ", "
-            code += '<span class="na">%s</span> <span class="kt">%s</span>' % (p['name'], p['type'])
-        code += ') <span class="kt">%s</span>\n' % v['returns']
+            else: func_code += ", "
+            func_code += '<span class="na">%s</span> <span class="kt">%s</span>' % (p['name'], p['type'])
+        func_code += ') <span class="kt">%s</span>\n' % v['returns']
+        if v.has_key('comment') and v['comment']:
+            if code:
+                sections.append(to_section(docs, code))
+            docs = v['comment']
+            code = func_code
+        else:
+            code += func_code
     code += "}"
 
-    return docs, code
+    sections.append(to_section(docs, code))
+    return sections
 
-def to_section(entity):
-    if entity["type"] == "enum":
-        docs, code = parse_enum(entity)
-    elif entity["type"] == "struct":
-        docs, code = parse_struct(entity)
-    elif entity["type"] == "interface":
-        docs, code = parse_interface(entity)
-    code = """<div class="highlight"><pre>%s</pre></div>""" % code
-    return { "docs": markdown.markdown(docs), "code": code }
+def wrap_code(code):
+    return """<div class="highlight"><pre>%s</pre></div>""" % code
+
+def to_section(docs, code):
+    return { "docs": markdown.markdown(docs), "code": wrap_code(code) }
 
 def to_sections(idl_parsed):
     sections = []
     for entity in idl_parsed:
-        sections.append(to_section(entity))
+        if entity["type"] == "enum":
+            sections.append(parse_enum(entity))
+        elif entity["type"] == "struct":
+            sections.append(parse_struct(entity))
+        elif entity["type"] == "interface":
+            sections.extend(parse_interface(entity))
     return sections
 
 if __name__ == "__main__":
