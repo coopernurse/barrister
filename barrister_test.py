@@ -12,7 +12,7 @@ age int
 }"""
         expected = [ { "name" : "Person", 
                        "type" : "struct", 
-                       "comment" : "",
+                       "comment" : "", "extends" : "",
                        "fields" : [ { "type" : "string", "name" : "email" },
                                     { "type" : "int", "name" : "age"} ] } ]
         self.assertEquals(expected, parse_str(idl))
@@ -22,11 +22,11 @@ age int
 struct Animal { furry bool }"""
         expected = [ { "name" : "Person", 
                        "type" : "struct", 
-                       "comment" : "",
+                       "comment" : "", "extends" : "",
                        "fields" : [ { "type" : "string", "name" : "email" } ] },
                      { "name" : "Animal", 
                        "type" : "struct", 
-                       "comment" : "",
+                       "comment" : "", "extends" : "",
                        "fields" : [ { "type" : "bool", "name" : "furry" } ] } ]
         self.assertEquals(expected, parse_str(idl))
 
@@ -115,6 +115,24 @@ interface FooService {
                     ] } ]
         self.assertEquals(expected, parse_str(idl))
         
+
+    def test_extends_struct(self):
+        idl = """struct Animal {
+   color string
+   gender string
+}
+
+struct Cat extends Animal {
+    purr_volume int
+}"""
+        expected = [ { "name" : "Animal", "type" : "struct", 
+                       "extends" : "", "comment" : "",
+                       "fields" : [ { "name" : "color", "type" : "string" },
+                                    { "name" : "gender", "type" : "string" } ] },
+                     { "name" : "Cat", "type" : "struct", 
+                       "extends" : "Animal", "comment" : "",
+                       "fields" : [ { "name" : "purr_volume", "type" : "int" } ] } ]
+        self.assertEquals(expected, parse_str(idl))
 
 if __name__ == "__main__":
     unittest.main()

@@ -34,7 +34,7 @@ class IdlScanner(Scanner):
         self.errors.append({"line": line, "message": message})
 
     def begin_struct(self, text):
-        self.cur = { "name" : text, "type" : "struct", 
+        self.cur = { "name" : text, "type" : "struct", "extends" : "",
                      "comment" : self.get_comment(), "fields" : [] }
         self.begin('start-block')
 
@@ -122,6 +122,12 @@ class IdlScanner(Scanner):
         self.begin(self.prev_state)
         self.prev_state = None
 
+    def end_extends(self, text):
+        if self.cur and self.cur["type"] == "struct":
+            self.cur["extends"] = text
+        else:
+            self.add_error("extends is only supported for struct types")
+
     lex = Lexicon([
             (space,      IGNORE),
             (Str('struct '),   Begin('struct-start')),
@@ -142,6 +148,11 @@ class IdlScanner(Scanner):
                     (AnyChar, "Missing identifier") ]),
             State('start-block', [
                     (space, IGNORE),
+                    (Str("extends"), Begin('extends')),
+                    (Str('{'), start_block) ]),
+            State('extends', [
+                    (space, IGNORE),
+                    (ident, end_extends),
                     (Str('{'), start_block) ]),
             State('fields', [
                     (ident,    begin_field),
