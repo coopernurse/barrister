@@ -69,7 +69,10 @@ def parse_enum(enum):
 
 def parse_struct(s):
     docs = s['comment']
-    code = '<span class="k">struct</span> <span class="gs">%s</span> {\n' % s['name']
+    code = '<span class="k">struct</span> <span class="gs">%s</span>' % s['name']
+    if s['extends']:
+        code += ' extends <span class="gs">%s</span>' % s['extends']
+    code += ' {\n'
     maxlen = 0
     for v in s["fields"]:
         if len(v['name']) > maxlen:

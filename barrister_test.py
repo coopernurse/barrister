@@ -13,8 +13,8 @@ age int
         expected = [ { "name" : "Person", 
                        "type" : "struct", 
                        "comment" : "", "extends" : "",
-                       "fields" : [ { "type" : "string", "name" : "email" },
-                                    { "type" : "int", "name" : "age"} ] } ]
+                       "fields" : [ { "type" : "string", "name" : "email", "comment":"" },
+                                    { "type" : "int", "name" : "age", "comment":"" } ] } ]
         self.assertEquals(expected, parse_str(idl))
 
     def test_parse_multiple(self):
@@ -23,11 +23,11 @@ struct Animal { furry bool }"""
         expected = [ { "name" : "Person", 
                        "type" : "struct", 
                        "comment" : "", "extends" : "",
-                       "fields" : [ { "type" : "string", "name" : "email" } ] },
+                       "fields" : [ { "type" : "string", "name" : "email", "comment":"" } ] },
                      { "name" : "Animal", 
                        "type" : "struct", 
                        "comment" : "", "extends" : "",
-                       "fields" : [ { "type" : "bool", "name" : "furry" } ] } ]
+                       "fields" : [ { "type" : "bool", "name" : "furry", "comment":"" } ] } ]
         self.assertEquals(expected, parse_str(idl))
 
     def test_parse_enum(self):
@@ -85,6 +85,16 @@ invalid }"""
                                       "value": "success" } ] } ]
         self.assertEquals(expected, parse_str(idl))        
 
+    def test_struct_comments(self):
+        idl = """struct Animal   {
+     // fur color
+     color string }"""
+        expected = [ { "name" : "Animal", "type" : "struct", "comment" : "",
+                       "extends" : "",
+                       "fields" : [ { "comment" : "fur color",
+                                      "name" : "color", "type" : "string" } ] } ]
+        self.assertEquals(expected, parse_str(idl))        
+
     def test_function_comments(self):
         idl = """interface FooService {
      //Add two numbers
@@ -127,11 +137,11 @@ struct Cat extends Animal {
 }"""
         expected = [ { "name" : "Animal", "type" : "struct", 
                        "extends" : "", "comment" : "",
-                       "fields" : [ { "name" : "color", "type" : "string" },
-                                    { "name" : "gender", "type" : "string" } ] },
+                       "fields" : [ { "name" : "color", "type" : "string", "comment":"" },
+                                    { "name" : "gender", "type" : "string", "comment":"" } ] },
                      { "name" : "Cat", "type" : "struct", 
                        "extends" : "Animal", "comment" : "",
-                       "fields" : [ { "name" : "purr_volume", "type" : "int" } ] } ]
+                       "fields" : [ { "name" : "purr_volume", "type" : "int", "comment":"" } ] } ]
         self.assertEquals(expected, parse_str(idl))
 
     def test_no_dupe_types(self):

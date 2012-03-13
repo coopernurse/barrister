@@ -105,6 +105,7 @@ class IdlScanner(Scanner):
 
     def end_field(self, text):
         self.field["type"] = text
+        self.field["comment"] = self.get_comment()
         self.cur["fields"].append(self.field)
         self.field = None
         self.begin("fields")
@@ -192,6 +193,7 @@ class IdlScanner(Scanner):
             State('fields', [
                     (ident,    begin_field),
                     (space,    IGNORE),
+                    (comment, start_comment),
                     (Str('{'), 'invalid'),
                     (Str('}'), end_block) ]),
             State('field', [
