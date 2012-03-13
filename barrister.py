@@ -34,19 +34,26 @@ class IdlScanner(Scanner):
         self.errors.append({"line": line, "message": message})
 
     def begin_struct(self, text):
+        self.check_dupe_name(text)
         self.cur = { "name" : text, "type" : "struct", "extends" : "",
                      "comment" : self.get_comment(), "fields" : [] }
         self.begin('start-block')
 
     def begin_enum(self, text):
+        self.check_dupe_name(text)
         self.cur = { "name" : text, "type" : "enum", 
                      "comment" : self.get_comment(), "values" : [] }
         self.begin('start-block')
 
     def begin_interface(self, text):
+        self.check_dupe_name(text)
         self.cur = { "name" : text, "type" : "interface", 
                      "comment" : self.get_comment(), "functions" : [] }
         self.begin('start-block')
+
+    def check_dupe_name(self, name):
+        if self.types.has_key(name):
+            self.add_error("type %s already defined" % name)
 
     def start_block(self, text):
         t = self.cur["type"]
@@ -61,6 +68,7 @@ class IdlScanner(Scanner):
 
     def end_block(self, text):
         self.parsed.append(self.cur)
+        self.types[self.cur["name"]] = self.cur
         self.cur = None
         self.begin('')
 
@@ -210,6 +218,7 @@ class IdlScanner(Scanner):
         Scanner.__init__(self, self.lex, f, name)
         self.parsed = [ ]
         self.errors = [ ]
+        self.types = { }
         self.comment = None
         self.cur = None
 
@@ -234,6 +243,9 @@ def parse(reader, name):
         return scanner.parsed
     else:
         raise IdlParseException(scanner.errors)
+
+def validate(parsed):
+    pass
     
 if __name__ == "__main__":
     parser = optparse.OptionParser("usage: %prog [options] [idl filename]")

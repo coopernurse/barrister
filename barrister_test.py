@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import unittest
-from barrister import parse_str, IdlParseException
+from barrister import validate, parse_str, IdlParseException
 
 class BarristerTest(unittest.TestCase):
 
@@ -133,6 +133,32 @@ struct Cat extends Animal {
                        "extends" : "Animal", "comment" : "",
                        "fields" : [ { "name" : "purr_volume", "type" : "int" } ] } ]
         self.assertEquals(expected, parse_str(idl))
+
+    def test_no_dupe_types(self):
+        idl = """struct Animal {
+    color string
+}
+enum Animal {
+    foo
+}
+interface Foo {
+    doSomething() bool
+}
+struct Foo {
+    color string
+}
+enum Blarg {  stuff }
+interface Blarg {
+    do_other() bool
+}"""
+        try:
+            validate(parse_str(idl))
+            self.fail("should have thrown exception")
+        except IdlParseException as e:
+            expected = [ { "line": 4, "message" : "type Animal already defined" },
+                         { "line": 10, "message" : "type Foo already defined" },
+                         { "line": 14, "message" : "type Blarg already defined" } ]
+            self.assertEquals(expected, e.errors)
 
 if __name__ == "__main__":
     unittest.main()
