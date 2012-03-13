@@ -189,5 +189,94 @@ interface FooService {
             expected = [ { "line": 0, "message" : "interface FooService cannot be a field type" } ]
             self.assertEquals(expected, e.errors)        
 
+    def test_types_exist(self):
+        idl = """struct Animal {
+    color Color
+}
+interface FooService {
+    saySomething(cat Cat) Saying
+}
+struct Blarg extends Foo {
+   a int
+}"""
+        try:
+            parse_str(idl)
+            self.fail("should have thrown exception")
+        except IdlParseException as e:
+            expected = [ { "line": 0, "message" : "undefined type: Color" },
+                         { "line": 0, "message" : "undefined type: Cat" },
+                         { "line": 0, "message" : "undefined type: Saying" },
+                         { "line": 0, "message" : "undefined type: Foo" } ]
+            self.assertEquals(expected, e.errors)
+
+    def test_cant_override_parent_field(self):
+        idl = """struct Animal {
+    color string
+    gender string
+}
+struct Cat    extends Animal {
+   color int
+}
+struct Manx extends Cat {
+   gender bool
+}"""
+        try:
+            parse_str(idl)
+            self.fail("should have thrown exception")
+        except IdlParseException as e:
+            expected = [ { "line": 0, "message" : "Cat cannot redefine parent field color" },
+                         { "line": 0, "message" : "Manx cannot redefine parent field gender" } ]
+            self.assertEquals(expected, e.errors)
+
+    def test_struct_cant_extend_enum(self):
+        idl = """enum Status { foo }
+struct Animal extends Status {
+    color string
+}"""
+        try:
+            parse_str(idl)
+            self.fail("should have thrown exception")
+        except IdlParseException as e:
+            expected = [ { "line": 0, "message" : "Animal cannot extend enum Status" } ]
+            self.assertEquals(expected, e.errors)        
+
+    def test_struct_cant_extend_native_type(self):
+        idl = """struct Animal extends float {
+    color string
+}"""
+        try:
+            parse_str(idl)
+            self.fail("should have thrown exception")
+        except IdlParseException as e:
+            expected = [ { "line": 0, "message" : "Animal cannot extend float" } ]
+            self.assertEquals(expected, e.errors)        
+
+    def test_struct_must_have_fields(self):
+        idl = "struct Animal { }"
+        try:
+            parse_str(idl)
+            self.fail("should have thrown exception")
+        except IdlParseException as e:
+            expected = [ { "line": 1, "message" : "Animal must have at least one field" } ]
+            self.assertEquals(expected, e.errors)        
+
+    def test_interface_must_have_funcs(self):
+        idl = "interface FooService { }"
+        try:
+            parse_str(idl)
+            self.fail("should have thrown exception")
+        except IdlParseException as e:
+            expected = [ { "line": 1, "message" : "FooService must have at least one function" } ]
+            self.assertEquals(expected, e.errors)        
+
+    def test_enum_must_have_values(self):
+        idl = "enum Status { }"
+        try:
+            parse_str(idl)
+            self.fail("should have thrown exception")
+        except IdlParseException as e:
+            expected = [ { "line": 1, "message" : "Status must have at least one value" } ]
+            self.assertEquals(expected, e.errors)        
+
 if __name__ == "__main__":
     unittest.main()
