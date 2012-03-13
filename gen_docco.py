@@ -117,7 +117,10 @@ def parse_interface(iface):
     return sections
 
 def wrap_code(code):
-    return """<div class="highlight"><pre>%s</pre></div>""" % code
+    if code:
+        return """<div class="highlight"><pre>%s</pre></div>""" % code
+    else:
+        return ""
 
 def to_section(docs, code):
     return { "docs": markdown.markdown(docs), "code": wrap_code(code) }
@@ -125,7 +128,9 @@ def to_section(docs, code):
 def to_sections(idl_parsed):
     sections = []
     for entity in idl_parsed:
-        if entity["type"] == "enum":
+        if entity["type"] == "comment":
+            sections.append(to_section(entity["value"], ""))
+        elif entity["type"] == "enum":
             sections.append(parse_enum(entity))
         elif entity["type"] == "struct":
             sections.append(parse_struct(entity))

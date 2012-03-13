@@ -164,7 +164,13 @@ class IdlScanner(Scanner):
         else:
             self.add_error("extends is only supported for struct types")
 
+    def add_comment_block(self, text):
+        comment = self.get_comment()
+        if comment:
+            self.parsed.append({"type" : "comment", "value" : comment})
+
     lex = Lexicon([
+            (Str("\n"),  add_comment_block),
             (space,      IGNORE),
             (Str('struct '),   Begin('struct-start')),
             (Str('enum '),   Begin('enum-start')),
@@ -337,7 +343,9 @@ class IdlScanner(Scanner):
 
     def validate(self):
         for t in self.parsed:
-            if not self.contains_cycle(t["name"], []):
+            if t["type"] == "comment":
+                pass
+            elif not self.contains_cycle(t["name"], []):
                 self.validate_type(t["name"], [], 0)
                 if t["type"] == "struct":
                     self.validate_struct_extends(t)

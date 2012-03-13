@@ -5,6 +5,21 @@ from barrister import parse_str, IdlParseException
 
 class BarristerTest(unittest.TestCase):
 
+    def test_parse_comment(self):
+        idl = """
+// # section
+// foo
+
+// this is a person
+struct Person {
+   age int
+}"""
+        expected = [ { "type" : "comment", "value" : "# section\nfoo" },
+                     { "type" : "struct", "name" : "Person", "extends" : "",
+                       "comment" : "this is a person", "fields" : [
+                    { "type" : "int", "name" : "age", "comment" : "" } ] } ]
+        self.assertEquals(expected, parse_str(idl))
+
     def test_parse_struct(self):
         idl = """struct Person {
 email string
