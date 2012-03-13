@@ -1,0 +1,197 @@
+
+// # Services
+// 
+// This is the section on services
+//
+
+interface UserService {
+  // Creates a new user if they don't exist.  If they do
+  // the user's name is updated
+  createIfNew(userId string, name string) BaseResponse
+
+  // Returns a user with the given id, or returns a notfound status
+  get(userId string) UserResponse
+
+  // Updates the given user
+  update(user UserUpdate) BaseResponse          
+}
+
+interface BookService {
+          put(book Book) BaseResponse
+          get(productId string, userId string) BookResponse
+          delete(productIds []string) DeleteResponse
+          cancelUserStatus(productId string, userId string) BaseResponse
+          setUserStatus(productId string, userId string, status BookUserStatus) BaseResponse
+          getAvailable(platforms []Platform, userId string, offset int, limit int) BooksResponse
+          getRecentActivity(limit int) ActivityResponse
+          getRecommendations(userId string) RecommendationsResponse
+          search(request SearchRequest) BooksResponse
+          getUserBooks(userId string) UserBooksResponse
+          getUserTasks(userId string) TasksResponse
+          ackLoan(userId string, loanId string, success bool) BaseResponse
+          bookNotLendable(productId string, userId string) BaseResponse
+          createLoan(productId string, fromUserId string, toUserId string) LoanResponse
+}
+
+interface CronJobs {
+         refreshRecommendCache() BaseResponse
+         sendBooksAvailable() BaseResponse 
+         sendBooksToLoan() BaseResponse
+         sendAvailableBookTweet() BaseResponse
+}
+
+// # Entities and Enums
+
+// The book selling platforms we support
+enum Platform {
+     kindle
+     nook
+}
+
+enum BookUserStatus {
+     none
+     want
+     have
+     dislike
+}
+
+struct Book {
+       productId string
+       dateCreated int
+       dateUpdated int
+       platform Platform
+       author string
+       title string
+       productUrl string
+       imageUrl string
+       lendable bool
+}
+
+struct BookWithStatus extends Book {
+       userStatus BookUserStatus
+}
+
+struct BookWithScore extends BookWithStatus {
+       score float
+}
+
+struct User {
+       userId string
+       name string
+       points int
+       dateCreated int
+       email string
+       kindleEmail string
+       nookEmail string
+       emailOptIn bool
+}
+
+struct UserUpdate {
+       userId string
+       name string
+       email string
+       kindleEmail string
+       nookEmail string
+       emailOptIn bool
+}
+
+struct SearchRequest {
+       platforms []Platform
+       userId string
+       keyword string
+       offset int
+       limit int
+}
+
+struct Recipient {
+       userId string
+       email string
+}
+
+struct ToLoanTask {
+       book Book
+       recipients []Recipient
+}
+
+struct ToAckTask {
+       book Book
+       fromEmail string
+       loanId string
+       dateLoaned int
+}
+
+// # Responses
+
+struct BaseResponse {
+       status Status
+       message string
+}
+
+// These are the status codes that interface functions may return.
+enum Status {
+     // Request successful
+     success
+
+     // Request failed due to some non-recoverable backend error
+     // such as the database was down.  This was not due to an invalid
+     // request
+     fatal
+
+     // Request failed because input was invalid
+     invalid
+
+     // Returned by query-style functions if no data is found for
+     // the given parameters
+     notfound
+
+     // Requesting user does not have permission to perform the requested
+     // action
+     denied
+}
+
+struct UserResponse extends BaseResponse {
+       user User
+}
+
+struct BookResponse extends BaseResponse {
+       userId string
+       book BookWithStatus
+}
+
+struct BooksResponse extends BaseResponse {
+       userId string
+       totalRows int
+       offset int
+       books []BookWithStatus
+}
+
+struct DeleteResponse extends BaseResponse {
+       deleteCount int
+}
+
+struct RecommendationsResponse extends BaseResponse {
+       userId string
+       books []BookWithScore
+}
+
+struct UserBooksResponse extends BaseResponse {
+       userId string
+       want []Book
+       have []Book
+       dislike []Book
+}
+
+struct TasksResponse extends BaseResponse {
+       userId string
+       toLoan []ToLoanTask
+       toAck []ToAckTask
+}
+
+struct LoanResponse extends BaseResponse {
+       loanId string
+}
+
+struct ActivityResponse extends BaseResponse {
+       activity []BookWithStatus
+}
+
