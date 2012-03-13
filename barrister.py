@@ -9,6 +9,7 @@ import cStringIO
 import optparse
 from plex import Scanner, Lexicon, Str, State, IGNORE, Begin, Any, AnyChar, Range, Rep
 
+native_types = [ "int", "float", "string", "bool" ]
 letter = Range("AZaz")
 digit = Range("09")
 under = Str("_")
@@ -23,14 +24,23 @@ class IdlParseException(Exception):
         Exception.__init__(self)
         self.errors = errors
 
+    def __str__(self):
+        s = ""
+        for e in self.errors:
+            if s != "":
+                s += ", "
+            s += "line: %d message: %s" % (e["line"], e["message"])
+        return s
+
 class IdlScanner(Scanner):
 
     def eof(self):
         if self.cur:
             self.add_error("Unexpected end of file")
 
-    def add_error(self, message):
-        (name, line, col) = self.position()
+    def add_error(self, message, line=-1):
+        if line < 0:
+            (name, line, col) = self.position()
         self.errors.append({"line": line, "message": message})
 
     def begin_struct(self, text):
@@ -231,21 +241,51 @@ class IdlScanner(Scanner):
                 self.add_error(t)
                 break
 
+    def check_cycle(self, cur_type, types):
+        if cur_type.find("[]") == 0:
+            cur_type = cur_type[2:]
 
-def parse_str(idl, name=""):
+        if cur_type in native_types:
+            pass
+        elif not self.types.has_key(cur_type):
+            self.add_error("undefined type: %s" % cur_type, line=0)
+        else:
+            cur = self.types[cur_type]
+            if cur_type in types:
+                self.add_error("cycle detected in: %s %s" % (cur["type"], cur["name"]), 
+                               line=0)
+            else:
+                types.append(cur_type)
+                if cur["type"] == "struct":
+                    for f in cur["fields"]:
+                        self.check_cycle(f["type"], types)
+                elif cur["type"] == "interface":
+                    # interface types must be top-level, so if len(types) > 1, we
+                    # know this interface was used as a type in a function or struct
+                    if len(types) > 1:
+                        self.add_error("interface %s cannot be a field type" % cur["name"], line=0)
+                    for f in cur["functions"]:
+                        for p in f["params"]:
+                            self.check_cycle(p["type"], types)
+                        self.check_cycle(f["returns"], types)
+
+    def validate(self):
+        for t in self.parsed:
+            self.check_cycle(t["name"], [])
+
+def parse_str(idl, name="", validate=True):
     reader = cStringIO.StringIO(idl)
-    return parse(reader, name)
+    return parse(reader, name, validate=validate)
 
-def parse(reader, name):
+def parse(reader, name, validate=True):
     scanner = IdlScanner(reader, name)
     scanner.parse()
+    if validate:
+        scanner.validate()
     if len(scanner.errors) == 0:
         return scanner.parsed
     else:
         raise IdlParseException(scanner.errors)
-
-def validate(parsed):
-    pass
     
 if __name__ == "__main__":
     parser = optparse.OptionParser("usage: %prog [options] [idl filename]")

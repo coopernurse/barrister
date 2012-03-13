@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import unittest
-from barrister import validate, parse_str, IdlParseException
+from barrister import parse_str, IdlParseException
 
 class BarristerTest(unittest.TestCase):
 
@@ -55,7 +55,7 @@ invalid }"""
                     { "name" : "login", "comment" : "",
                       "returns" : "LoginResponse", "params" : [
                             { "type" : "LoginRequest", "name" : "req" } ] } ] } ]
-        self.assertEquals(expected, parse_str(idl))
+        self.assertEquals(expected, parse_str(idl, validate=False))
 
     def test_invalid_struct(self):
         idl = """struct foo { """
@@ -113,7 +113,7 @@ interface FooService {
                     { "name" : "blah99", "returns" : "blah_Response",
                       "comment" : "", "params" : [ ] }
                     ] } ]
-        self.assertEquals(expected, parse_str(idl))
+        self.assertEquals(expected, parse_str(idl, validate=False))
         
 
     def test_extends_struct(self):
@@ -152,13 +152,42 @@ interface Blarg {
     do_other() bool
 }"""
         try:
-            validate(parse_str(idl))
+            parse_str(idl)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 4, "message" : "type Animal already defined" },
                          { "line": 10, "message" : "type Foo already defined" },
                          { "line": 14, "message" : "type Blarg already defined" } ]
             self.assertEquals(expected, e.errors)
+
+    def test_no_cycles(self):
+        idl = """struct Animal {
+    home Location
+}
+struct Location {
+    residents []Animal
+}"""
+        try:
+            parse_str(idl)
+            self.fail("should have thrown exception")
+        except IdlParseException as e:
+            expected = [ { "line": 0, "message" : "cycle detected in: struct Animal" },
+                         { "line": 0, "message" : "cycle detected in: struct Location" } ]
+            self.assertEquals(expected, e.errors)
+
+    def test_interface_cant_be_field_type(self):
+        idl = """struct Animal {
+    svc FooService
+}
+interface FooService {
+    do_something() bool
+}"""
+        try:
+            parse_str(idl)
+            self.fail("should have thrown exception")
+        except IdlParseException as e:
+            expected = [ { "line": 0, "message" : "interface FooService cannot be a field type" } ]
+            self.assertEquals(expected, e.errors)        
 
 if __name__ == "__main__":
     unittest.main()
