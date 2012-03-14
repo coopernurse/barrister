@@ -1,13 +1,17 @@
 
-inproc_registry = { }
+try:
+    import json
+except:
+    import simplejson as json
+
+def contract_from_file(fname):
+    f = open(fname)
+    j = f.read()
+    f.close()
+    return Contract(json.loads(j))
 
 class RpcException(Exception):
     pass
-
-class InProcState(object):
-
-    def __init__(self):
-        self.server = None
 
 class InProcTransport(object):
 
@@ -15,23 +19,21 @@ class InProcTransport(object):
         self.validate_req  = validate_request
         self.validate_resp = validate_response
         self.name = name
-        if not inproc_registry.has_key(name):
-            inproc_registry[name] = InProcState()
-        self.state = inproc_registry[name]
+        self.server = None
 
     def serve(self, server):
-        self.state.server = server
+        self.server = server
 
     def client(self):
-        if self.state.server:
-            return Client(self, self.state.server.contract)
+        if self.server:
+            return Client(self, self.server.contract)
         else:
             raise RpcException("No server bound to InProcTransport '%s'" % self.name)
-
+        
     def call(self, iface_name, func_name, params):
-        if self.state.server:
+        if self.server:
             self._validate_request(iface_name, func_name, params)
-            resp = self.state.server.call(iface_name, func_name, params)
+            resp = self.server.call(iface_name, func_name, params)
             self._validate_response(iface_name, func_name, resp)
             return resp
         else:
@@ -39,11 +41,11 @@ class InProcTransport(object):
 
     def _validate_request(self, iface_name, func_name, params):
         if self.validate_req:
-            self.state.server.contract.validate_request(iface_name, func_name, params)
+            self.server.contract.validate_request(iface_name, func_name, params)
 
     def _validate_response(self, iface_name, func_name, resp):
         if self.validate_resp:
-            self.state.server.contract.validate_response(iface_name, func_name, resp)
+            self.server.contract.validate_response(iface_name, func_name, resp)
 
 class Server(object):
 
@@ -131,7 +133,7 @@ class Contract(object):
         else:
             raise RpcException("Unknown interface: '%s'", iface_name)
 
-    def validate(self, expected_type, val):
+    def validate(self, expected_type, val, allow_missing=True):
         if expected_type == "int":
             if not isinstance(val, (long, int)):
                 return False, "'%s' is not an int" % str(val)
@@ -145,7 +147,7 @@ class Contract(object):
             if not isinstance(val, str):
                 return False, "'%s' is not a string" % str(val)
         else:
-            return self.get(expected_type).validate(val)
+            return self.get(expected_type).validate(val, allow_missing)
         return True, None
 
 class Interface(object):
@@ -170,7 +172,7 @@ class Enum(object):
         for v in enum["values"]:
             self.values.append(v["value"])
 
-    def validate(self, val):
+    def validate(self, val, allow_missing):
         if val in self.values:
             return True, None
         else:
@@ -197,19 +199,26 @@ class Struct(object):
         else:
             return None
 
-    def validate(self, val):
+    def validate(self, val, allow_missing):
         if type(val) is not dict:
             return False, "%s is not a dict" % (str(val))
+
         for k, v in val.items():
             field = self.field(k)
-            if v == None:
+            if allow_missing and v == None:
                 pass
             elif field:
-                ok, msg = self.contract.validate(field["type"], v)
+                ok, msg = self.contract.validate(field["type"], v, allow_missing)
                 if not ok:
-                    return False, msg
+                    return False, "field '%s': %s" % (field["name"], msg)
             else:
                 return False, "field '%s' not found in struct %s" % (k, self.name)
+
+        if not allow_missing:
+            for k, v in self.fields.items():
+                if not val.has_key(k):
+                    return False, "field '%s' missing from: %s" % (k, str(val))
+
         return True, None
 
 class Function(object):
@@ -231,7 +240,11 @@ class Function(object):
             i += 1
 
     def validate_response(self, resp):
-        pass
+        ok, msg = self.contract.validate(self.returns, resp, allow_missing=False)
+        if not ok:
+            vals = (self.full_name, str(resp), msg)
+            msg = "Function '%s' invalid response: '%s'. %s" % vals
+            raise RpcException(msg)
 
     def validate(self, expected, param):
         ok, msg = self.contract.validate(expected["type"], param)

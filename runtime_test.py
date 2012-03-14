@@ -49,8 +49,9 @@ interface UserService {
 }
 """
 
-def newUser(userId=None, email=None):
-    return { "userId" : userId, "email" : email }
+def newUser(userId="abc123", email=None):
+    return { "userId" : userId, "password" : "pw", "email" : email,
+      "emailVerified" : False, "dateCreated" : 1, "age" : 3.3 }
 
 def now_millis():
     return int(time.time() * 1000)
@@ -96,8 +97,9 @@ class InProcTest(unittest.TestCase):
 
     def setUp(self):
         contract = runtime.Contract(barrister.parse_str(idl))
+        self.user_svc = UserServiceImpl()
         self.server = runtime.Server(contract)
-        self.server.set_interface_handler("UserService", UserServiceImpl())
+        self.server.set_interface_handler("UserService", self.user_svc)
 
         transport = runtime.InProcTransport("test")
         transport.serve(self.server)
@@ -114,16 +116,6 @@ class InProcTest(unittest.TestCase):
         self.assertEquals("ok", svc.changePassword("123", "oldpw", "newpw")["status"])
         self.assertEquals(1, svc.countUsers()["count"])
 
-class ClientTest(unittest.TestCase):
-
-    def setUp(self):
-        contract = runtime.Contract(barrister.parse_str(idl))
-        self.server = runtime.Server(contract)
-        self.server.set_interface_handler("UserService", UserServiceImpl())
-        transport = runtime.InProcTransport("test")
-        transport.serve(self.server)
-        self.client = transport.client()
-
     def test_invalid_req(self):
         svc = self.client.UserService
         cases = [ 
@@ -137,6 +129,32 @@ class ClientTest(unittest.TestCase):
             ]
         for c in cases:
             self.assertRaises(runtime.RpcException, *c)
+
+    def test_invalid_resp(self):
+        
+        svc = self.client.UserService
+        responses = [ 
+            { }, # missing fields
+            { "status" : "blah" }, # invalid enum
+            { "status" : "ok", "message" : 1 }, # invalid type
+            { "status" : "ok", "message" : "good", "blarg" : True }, # invalid field
+            { "status" : "ok", "message" : "good", "user" : { # missing password field
+                    "userId" : "123", "email" : "foo@bar.com",
+                    "emailVerified" : False, "dateCreated" : 1, "age" : 3.3 } },
+            { "status" : "ok", "message" : "good", "user" : { # missing password field
+                    "userId" : "123", "email" : "foo@bar.com",
+                    "emailVerified" : False, "dateCreated" : 1, "age" : 3.3 } },
+            { "status" : "ok", "user" : { # missing message field
+                    "userId" : "123", "email" : "foo@bar.com",
+                    "emailVerified" : False, "dateCreated" : 1, "age" : 3.3 } }
+            ]
+        for resp in responses:
+            self.user_svc.get = lambda id: resp
+            try:
+                svc.get("123")
+                self.fail("Expected RpcException for response: %s" % str(resp))
+            except runtime.RpcException:
+                pass
 
 if __name__ == "__main__":
     unittest.main()
