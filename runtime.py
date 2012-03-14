@@ -97,9 +97,9 @@ class Contract(object):
         self.enums = { }
         for e in idl_parsed:
             if e["type"] == "struct":
-                self.structs[e["name"]] = e
+                self.structs[e["name"]] = Struct(e, self)
             elif e["type"] == "enum":
-                self.enums[e["name"]] = e
+                self.enums[e["name"]] = Enum(e)
             elif e["type"] == "interface":
                 self.interfaces[e["name"]] = Interface(e, self)
 
@@ -109,11 +109,44 @@ class Contract(object):
     def validate_response(self, iface_name, func_name, resp):
         self.interface(iface_name).function(func_name).validate_response(resp)
 
+    def get(self, name):
+        if self.structs.has_key(name):
+            return self.structs[name]
+        elif self.enums.has_key(name):
+            return self.enums[name]
+        elif self.interfaces.has_key(name):
+            return self.interfaces[name]
+        else:
+            raise RpcException("Unknown entity: '%s'", name)
+
+    def struct(self, struct_name):
+        if self.structs.has_key(struct_name):
+            return self.structs[struct_name]
+        else:
+            raise RpcException("Unknown struct: '%s'", struct_name)
+
     def interface(self, iface_name):
         if self.interfaces.has_key(iface_name):
             return self.interfaces[iface_name]
         else:
             raise RpcException("Unknown interface: '%s'", iface_name)
+
+    def validate(self, expected_type, val):
+        if expected_type == "int":
+            if not isinstance(val, (long, int)):
+                return False, "'%s' is not an int" % str(val)
+        elif expected_type == "float":
+            if not isinstance(val, float):
+                return False, "'%s' is not a float" % str(val)
+        elif expected_type == "bool":
+            if not isinstance(val, bool):
+                return False, "'%s' is not a bool" % str(val)
+        elif expected_type == "string":
+            if not isinstance(val, str):
+                return False, "'%s' is not a string" % str(val)
+        else:
+            return self.get(expected_type).validate(val)
+        return True, None
 
 class Interface(object):
 
@@ -129,9 +162,60 @@ class Interface(object):
         else:
             raise RpcException("%s: Unknown function: '%s'", self.name, func_name)
 
+class Enum(object):
+
+    def __init__(self, enum):
+        self.name = enum["name"]
+        self.values = [ ]
+        for v in enum["values"]:
+            self.values.append(v["value"])
+
+    def validate(self, val):
+        if val in self.values:
+            return True, None
+        else:
+            return False, "'%s' is not in enum: %s" % (val, str(self.values))
+
+class Struct(object):
+
+    def __init__(self, s, contract):
+        self.contract = contract
+        self.name = s["name"]
+        self.extends = s["extends"]
+        self.parent = None
+        self.fields = { }
+        for f in s["fields"]:
+            self.fields[f["name"]] = f
+
+    def field(self, name):
+        if self.fields.has_key(name):
+            return self.fields[name]
+        elif self.extends:
+            if not self.parent:
+                self.parent = self.contract.struct(self.extends)
+            return self.parent.field(name)
+        else:
+            return None
+
+    def validate(self, val):
+        if type(val) is not dict:
+            return False, "%s is not a dict" % (str(val))
+        for k, v in val.items():
+            field = self.field(k)
+            if v == None:
+                pass
+            elif field:
+                ok, msg = self.contract.validate(field["type"], v)
+                if not ok:
+                    return False, msg
+            else:
+                return False, "field '%s' not found in struct %s" % (k, self.name)
+        return True, None
+
 class Function(object):
 
     def __init__(self, iface_name, f, contract):
+        self.contract = contract
         self.name = f["name"]
         self.params = f["params"]
         self.returns = f["returns"]
@@ -141,9 +225,17 @@ class Function(object):
         if len(self.params) != len(params):
             vals = (self.full_name, len(self.params), len(params))
             raise RpcException("Function '%s' expects %d param(s). %d given." % vals)
+        i = 0
         for p in self.params:
-            pass
+            self.validate(p, params[i])
+            i += 1
 
     def validate_response(self, resp):
         pass
 
+    def validate(self, expected, param):
+        ok, msg = self.contract.validate(expected["type"], param)
+        if not ok:
+            vals = (self.full_name, expected["name"], msg)
+            msg = "Function '%s' invalid param '%s'. %s" % vals
+            raise RpcException(msg)

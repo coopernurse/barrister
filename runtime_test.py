@@ -67,7 +67,7 @@ class UserServiceImpl(object):
 
     def create(self, user):
         resp = self._resp("ok", "user created")
-        userId = uuid.uuid4()
+        userId = uuid.uuid4().hex
         user["dateCreated"] = now_millis()
         resp["userId"] = userId
         self.users[userId] = user
@@ -125,7 +125,18 @@ class ClientTest(unittest.TestCase):
         self.client = transport.client()
 
     def test_invalid_req(self):
-        self.assertRaises(runtime.RpcException, self.client.UserService.get)
+        svc = self.client.UserService
+        cases = [ 
+            [ svc.get ],  # too few args
+            [ svc.get, 1, 2 ], # too many args
+            [ svc.get, 1 ], # wrong type
+            [ svc.create, None ], # wrong type
+            [ svc.create, 1 ], # wrong type
+            [ svc.create, { "UserId" : "1" } ], # unknown param
+            [ svc.create, { "userId" : 1 } ] # wrong type
+            ]
+        for c in cases:
+            self.assertRaises(runtime.RpcException, *c)
 
 if __name__ == "__main__":
     unittest.main()
