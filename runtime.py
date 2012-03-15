@@ -32,10 +32,17 @@ class Server(object):
             iface_impl = self.handlers[iface_name]
             func = getattr(iface_impl, func_name)
             if func:
+                if self.validate_req:
+                    self.contract.validate_request(iface_name, func_name, params)
+
                 if params:
-                    return func(*params)
+                    resp = func(*params)
                 else:
-                    return func()
+                    resp = func()
+
+                if self.validate_resp:
+                    self.contract.validate_response(iface_name, func_name, resp)
+                return resp
             else:
                 msg = "Function '%s.%s' not found" % (iface_name, func_name)
                 raise RpcException(msg)
