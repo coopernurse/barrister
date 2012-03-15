@@ -15,7 +15,9 @@ class RpcException(Exception):
 
 class Server(object):
 
-    def __init__(self, contract):
+    def __init__(self, contract, validate_request=True, validate_response=True):
+        self.validate_req  = validate_request
+        self.validate_resp = validate_response
         self.contract = contract
         self.handlers = { }
 
@@ -49,39 +51,41 @@ class InProcTransport(object):
         self.server = server
 
     def client(self):
-        return Client(self, self.server.contract)
+        return Client(self, self.server.contract, 
+                      validate_request=self.validate_req,
+                      validate_response=self.validate_resp)
         
     def call(self, iface_name, func_name, params):
-        self._validate_request(iface_name, func_name, params)
-        resp = self.server.call(iface_name, func_name, params)
-        self._validate_response(iface_name, func_name, resp)
-        return resp
-
-    def _validate_request(self, iface_name, func_name, params):
-        if self.validate_req:
-            self.server.contract.validate_request(iface_name, func_name, params)
-
-    def _validate_response(self, iface_name, func_name, resp):
-        if self.validate_resp:
-            self.server.contract.validate_response(iface_name, func_name, resp)
+        return self.server.call(iface_name, func_name, params)
 
 class Client(object):
     
-    def __init__(self, transport, contract):
+    def __init__(self, transport, contract, 
+                 validate_request=True, validate_response=True):
         self.transport = transport
-        self.contract = contract
+        self.contract  = contract
+        self.validate_req  = validate_request
+        self.validate_resp = validate_response
         for k, v in self.contract.interfaces.items():
-            setattr(self, k, InterfaceClientProxy(transport, v))
+            setattr(self, k, InterfaceClientProxy(self, v))
 
 class InterfaceClientProxy(object):
 
-    def __init__(self, transport, iface):
+    def __init__(self, client, iface):
+        self.client = client
         iface_name = iface.name
         for func_name, func in iface.functions.items():
-            setattr(self, func_name, self._caller(transport, iface_name, func_name))
+            setattr(self, func_name, self._caller(iface_name, func_name))
 
-    def _caller(self, transport, iface_name, func_name):
-        return lambda *params: transport.call(iface_name, func_name, params)
+    def _caller(self, iface_name, func_name):
+        def caller(*params):
+            if self.client.validate_req:
+                self.client.contract.validate_request(iface_name, func_name, params)
+            resp = self.client.transport.call(iface_name, func_name, params)
+            if self.client.validate_resp:
+                self.client.contract.validate_response(iface_name, func_name, resp)
+            return resp
+        return caller
 
 class Contract(object):
 
