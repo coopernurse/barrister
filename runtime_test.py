@@ -50,7 +50,7 @@ interface UserService {
 """
 
 def newUser(userId="abc123", email=None):
-    return { "userId" : userId, "password" : "pw", "email" : email,
+    return { "userId" : userId, "password" : u"pw", "email" : email,
       "emailVerified" : False, "dateCreated" : 1, "age" : 3.3 }
 
 def now_millis():

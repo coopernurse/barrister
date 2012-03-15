@@ -11,14 +11,16 @@ except:
 class UserService(object):
 
     def get(self, userId):
-        return { "userId" : userId, "password" : "pw", "email" : "foo@bar.com",
-                 "emailVerified" : False, "dateCreated" : 1, "age" : 3.3 }
+        user = { "userId" : userId, "name" : "Bob", "email" : "", 
+                 "dateCreated" : 123, "points" : 10,
+                 "kindleEmail" : "", "nookEmail" : "", "emailOptIn" : False }
+        return { "status" : "success", "message" : "here's your user", "user" : user}
 
 logging.basicConfig(level=logging.WARN)
 app = Flask(__name__)
 
-book_server = runtime.Server(runtime.contract_from_file("examples/book.json"))
-book_server.set_interface_handler("UserService", UserService())
+book_server = runtime.Server(runtime.contract_from_file("book.json"))
+book_server.add_handler("UserService", UserService())
 
 @app.route("/book", methods=["GET","POST"])
 def book():

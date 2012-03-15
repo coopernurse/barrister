@@ -143,19 +143,22 @@ class Contract(object):
     def validate(self, expected_type, val, allow_missing=True):
         if expected_type == "int":
             if not isinstance(val, (long, int)):
-                return False, "'%s' is not an int" % str(val)
+                return self._type_err(val, "int")
         elif expected_type == "float":
             if not isinstance(val, float):
-                return False, "'%s' is not a float" % str(val)
+                return self._type_err(val, "float")
         elif expected_type == "bool":
             if not isinstance(val, bool):
-                return False, "'%s' is not a bool" % str(val)
+                return self._type_err(val, "bool")
         elif expected_type == "string":
-            if not isinstance(val, str):
-                return False, "'%s' is not a string" % str(val)
+            if not isinstance(val, (str, unicode)):
+                return self._type_err(val, "string")
         else:
             return self.get(expected_type).validate(val, allow_missing)
         return True, None
+
+    def _type_err(self, expected, val):
+        return False, "'%s' is of type %s, expected %s" % (val, type(val), expected)
 
 class Interface(object):
 
