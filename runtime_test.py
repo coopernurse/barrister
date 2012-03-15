@@ -101,8 +101,7 @@ class InProcTest(unittest.TestCase):
         self.server = runtime.Server(contract)
         self.server.add_handler("UserService", self.user_svc)
 
-        transport = runtime.InProcTransport("test")
-        transport.serve(self.server)
+        transport = runtime.InProcTransport(self.server)
         self.client = transport.client()
 
     def test_add_handler_invalid(self):

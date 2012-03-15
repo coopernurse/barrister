@@ -13,40 +13,6 @@ def contract_from_file(fname):
 class RpcException(Exception):
     pass
 
-class InProcTransport(object):
-
-    def __init__(self, name, validate_request=True, validate_response=True):
-        self.validate_req  = validate_request
-        self.validate_resp = validate_response
-        self.name = name
-        self.server = None
-
-    def serve(self, server):
-        self.server = server
-
-    def client(self):
-        if self.server:
-            return Client(self, self.server.contract)
-        else:
-            raise RpcException("No server bound to InProcTransport '%s'" % self.name)
-        
-    def call(self, iface_name, func_name, params):
-        if self.server:
-            self._validate_request(iface_name, func_name, params)
-            resp = self.server.call(iface_name, func_name, params)
-            self._validate_response(iface_name, func_name, resp)
-            return resp
-        else:
-            raise RpcException("No server bound to InProcTransport '%s'" % self.name)
-
-    def _validate_request(self, iface_name, func_name, params):
-        if self.validate_req:
-            self.server.contract.validate_request(iface_name, func_name, params)
-
-    def _validate_response(self, iface_name, func_name, resp):
-        if self.validate_resp:
-            self.server.contract.validate_response(iface_name, func_name, resp)
-
 class Server(object):
 
     def __init__(self, contract):
@@ -74,6 +40,30 @@ class Server(object):
         else:
             msg = "No implementation of '%s' found" % (iface_name)
             raise RpcException(msg)        
+
+class InProcTransport(object):
+
+    def __init__(self, server, validate_request=True, validate_response=True):
+        self.validate_req  = validate_request
+        self.validate_resp = validate_response
+        self.server = server
+
+    def client(self):
+        return Client(self, self.server.contract)
+        
+    def call(self, iface_name, func_name, params):
+        self._validate_request(iface_name, func_name, params)
+        resp = self.server.call(iface_name, func_name, params)
+        self._validate_response(iface_name, func_name, resp)
+        return resp
+
+    def _validate_request(self, iface_name, func_name, params):
+        if self.validate_req:
+            self.server.contract.validate_request(iface_name, func_name, params)
+
+    def _validate_response(self, iface_name, func_name, resp):
+        if self.validate_resp:
+            self.server.contract.validate_response(iface_name, func_name, resp)
 
 class Client(object):
     
