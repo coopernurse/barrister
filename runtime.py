@@ -53,8 +53,11 @@ class Server(object):
         self.contract = contract
         self.handlers = { }
 
-    def set_interface_handler(self, name, handler):
-        self.handlers[name] = handler
+    def add_handler(self, iface_name, handler):
+        if self.contract.has_interface(iface_name):
+            self.handlers[iface_name] = handler
+        else:
+            raise RpcException("Unknown interface: '%s'", iface_name)
 
     def call(self, iface_name, func_name, params):
         if self.handlers.has_key(iface_name):
@@ -127,8 +130,11 @@ class Contract(object):
         else:
             raise RpcException("Unknown struct: '%s'", struct_name)
 
+    def has_interface(self, iface_name):
+        return self.interfaces.has_key(iface_name)
+
     def interface(self, iface_name):
-        if self.interfaces.has_key(iface_name):
+        if self.has_interface(iface_name):
             return self.interfaces[iface_name]
         else:
             raise RpcException("Unknown interface: '%s'", iface_name)

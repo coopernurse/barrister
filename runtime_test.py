@@ -99,11 +99,14 @@ class InProcTest(unittest.TestCase):
         contract = runtime.Contract(barrister.parse_str(idl))
         self.user_svc = UserServiceImpl()
         self.server = runtime.Server(contract)
-        self.server.set_interface_handler("UserService", self.user_svc)
+        self.server.add_handler("UserService", self.user_svc)
 
         transport = runtime.InProcTransport("test")
         transport.serve(self.server)
         self.client = transport.client()
+
+    def test_add_handler_invalid(self):
+        self.assertRaises(runtime.RpcException, self.server.add_handler, "foo", self.user_svc)
 
     def test_user_crud(self):
         svc = self.client.UserService
