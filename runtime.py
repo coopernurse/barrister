@@ -257,6 +257,12 @@ class Contract(object):
         if expected_type.find("[]") == 0:
             if not isinstance(val, list):
                 return self._type_err(val, "list")
+            else:
+                expected_type = expected_type[2:]
+                for v in val:
+                    ok, msg = self.validate(expected_type, v, allow_missing)
+                    if not ok:
+                        return ok, msg
         elif expected_type == "int":
             if not isinstance(val, (long, int)):
                 return self._type_err(val, "int")

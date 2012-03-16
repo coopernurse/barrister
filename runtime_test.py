@@ -39,6 +39,10 @@ struct UserResponse extends Response {
     user User
 }
 
+struct UsersResponse extends Response {
+    users []User
+}
+
 interface UserService {
     get(userId string) UserResponse
     create(user User) CreateUserResponse
@@ -46,6 +50,7 @@ interface UserService {
     validateEmail(userId string) Response
     changePassword(userId string, oldPass string, newPass string) Response
     countUsers() CountResponse
+    getAll(userIds []string) UsersResponse
 }
 """
 
@@ -90,6 +95,9 @@ class UserServiceImpl(object):
         resp["count"] = len(self.users)
         return resp
 
+    def getAll(self, userIds):
+        return { "users": [] }
+
     def _resp(self, status, message):
         return { "status" : status, "message" : message }
 
@@ -117,6 +125,7 @@ class InProcTest(unittest.TestCase):
         self.assertTrue(user["dateCreated"] > 0)
         self.assertEquals("ok", svc.changePassword("123", "oldpw", "newpw")["status"])
         self.assertEquals(1, svc.countUsers()["count"])
+        svc.getAll([])
 
     def test_invalid_req(self):
         svc = self.client.UserService
@@ -127,10 +136,19 @@ class InProcTest(unittest.TestCase):
             [ svc.create, None ], # wrong type
             [ svc.create, 1 ], # wrong type
             [ svc.create, { "UserId" : "1" } ], # unknown param
-            [ svc.create, { "userId" : 1 } ] # wrong type
+            [ svc.create, { "userId" : 1 } ], # wrong type
+            [ svc.getAll, { } ], # wrong type
+            [ svc.getAll, [ 1 ] ] # wrong type
             ]
         for c in cases:
-            self.assertRaises(runtime.RpcException, *c)
+            try:
+                if len(c) > 1:
+                    c[0](c[1])
+                else:
+                    c[0]()
+                self.fail("Expected RpcException for: %s" % str(c))
+            except runtime.RpcException:
+                pass
 
     def test_invalid_resp(self):
         
