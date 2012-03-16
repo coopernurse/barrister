@@ -1,0 +1,34 @@
+# this file's format:
+#   pipe delimited
+#   columns:
+#     interface
+#     function
+#     params (as json array)
+#     status: ok or err
+#     expected response body (as json, only checked if status==ok)
+
+# clients should skip blank lines, or lines that start with #
+# clients should assume endpoints of localhost:9233
+# clients should not validate requests (we intentionally include some invalid ones)
+# clients should validate responses
+#
+# servers should validate requests and responses
+# servers should bind to localhost:9233
+
+# valid
+B|echo|["hello"]|ok|"hello"
+B|echo|["hello w\u00f6rld"]|ok|"hello w\u00f6rld"
+
+# invalid types
+B|echo|[2]|err|
+B|echo|[{"hello":"1"}]|err|
+
+A|add|[3,5]|ok|8
+A|add|[3.3,5]|err|
+A|sqrt|[9]|ok|3.0
+A|sqrt|[25.0]|ok|5.0
+A|say_hi|[]|ok|{"hi":"hi"}
+A|say_hi|["blah"]|err|
+A|repeat|[{"to_repeat":"yo", "count": 2}]|ok|{"count":2,"items":["yo","yo"]}
+A|add_all|[[2,3.0,6]]|ok|11.0
+A|add_all|[[2,3,"6"]]|err|

@@ -1,0 +1,36 @@
+// Barrister conformance IDL
+
+enum Status {
+    ok
+    err
+}
+
+struct Response {
+    status Status
+}
+
+struct RepeatResponse extends Response {
+    count int
+    items []string
+}
+
+struct HiResponse {
+   hi string
+}
+
+struct RepeatRequest {
+    to_repeat string
+    count int
+}
+
+interface A {
+  add(a int, b int) int
+  add_all(nums []float) float
+  sqrt(a float) float
+  repeat(req1 RepeatRequest) RepeatResponse
+  say_hi() HiResponse
+}
+
+interface B {
+  echo(s string) string
+}

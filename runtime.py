@@ -1,4 +1,5 @@
 
+import urllib2
 try:
     import json
 except:
@@ -32,10 +33,12 @@ class Server(object):
             iface_impl = self.handlers[iface_name]
             func = getattr(iface_impl, func_name)
             if func:
+                print "server params: %s" % str(params)
+
                 if self.validate_req:
                     self.contract.validate_request(iface_name, func_name, params)
 
-                if params:
+                if params and len(params) > 0:
                     resp = func(*params)
                 else:
                     resp = func()
@@ -49,6 +52,33 @@ class Server(object):
         else:
             msg = "No implementation of '%s' found" % (iface_name)
             raise RpcException(msg)        
+
+class HttpTransport(object):
+
+    def __init__(self, url, validate_request=True, validate_response=True):
+        self.validate_req  = validate_request
+        self.validate_resp = validate_response
+        self.url = url
+
+    def client(self):
+        resp = urllib2.urlopen(self.url)
+        idl_parsed = json.loads(resp.read())
+        resp.close()
+        contract = Contract(idl_parsed)
+        return Client(self, contract, 
+                      validate_request=self.validate_req,
+                      validate_response=self.validate_resp)
+        
+    def call(self, iface_name, func_name, params):
+        data = json.dumps(params)
+        headers = {'Content-Type': 'application/json',
+                   'X-Barrister-Interface' : iface_name,
+                   'X-Barrister-Function' : func_name }
+        req = urllib2.Request(self.url, data, headers)
+        f = urllib2.urlopen(req)
+        resp = f.read()
+        f.close()
+        return json.loads(resp)
 
 class InProcTransport(object):
 
@@ -86,6 +116,7 @@ class InterfaceClientProxy(object):
 
     def _caller(self, iface_name, func_name):
         def caller(*params):
+            print "client params: %s" % str(params)
             if self.client.validate_req:
                 self.client.contract.validate_request(iface_name, func_name, params)
             resp = self.client.transport.call(iface_name, func_name, params)
@@ -141,11 +172,14 @@ class Contract(object):
             raise RpcException("Unknown interface: '%s'", iface_name)
 
     def validate(self, expected_type, val, allow_missing=True):
-        if expected_type == "int":
+        if expected_type.find("[]") == 0:
+            if not isinstance(val, list):
+                return self._type_err(val, "list")
+        elif expected_type == "int":
             if not isinstance(val, (long, int)):
                 return self._type_err(val, "int")
         elif expected_type == "float":
-            if not isinstance(val, float):
+            if not isinstance(val, (float, int, long)):
                 return self._type_err(val, "float")
         elif expected_type == "bool":
             if not isinstance(val, bool):
@@ -157,7 +191,7 @@ class Contract(object):
             return self.get(expected_type).validate(val, allow_missing)
         return True, None
 
-    def _type_err(self, expected, val):
+    def _type_err(self, val, expected):
         return False, "'%s' is of type %s, expected %s" % (val, type(val), expected)
 
 class Interface(object):

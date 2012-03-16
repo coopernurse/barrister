@@ -22,6 +22,11 @@ app = Flask(__name__)
 book_server = runtime.Server(runtime.contract_from_file("book.json"))
 book_server.add_handler("UserService", UserService())
 
+@app.route("/other", methods=["GET","POST"])
+def other():
+    resp = make_response("fooasdlfjaslkdfjasldkfjasldkfjasldkfjasldkfjasldfkjasldfkjasldfkjasldkfjasldfkjasldkfjasldkfjasldkfjasldkfjasldkfjasldkfjasldkfjasldfkjasldfkjasdlfkjasldfkajsdfs")
+    return resp
+
 @app.route("/book", methods=["GET","POST"])
 def book():
     if request.method == "POST":

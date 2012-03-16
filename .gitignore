@@ -1,5 +1,6 @@
 env
 examples/*.html
 examples/*.json
+conform/*.out
 *.pyc
 *~
