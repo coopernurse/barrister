@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from flask import Flask, make_response, request
+from flask import Flask, make_response, request, jsonify
 import runtime
 import logging
 import json
@@ -49,20 +49,9 @@ def exit():
     sys.stdout.flush()
     return "shutting down"
 
-@app.route("/", methods=["GET","POST"])
-def barrister():
-    if request.method == "POST":
-        iface_name = request.headers["X-Barrister-Interface"]
-        func_name  = request.headers["X-Barrister-Function"]
-        params     = json.loads(request.data)
-        j = json.dumps(server.call(iface_name, func_name, params))
-    elif request.method == "GET":
-        j = json.dumps(server.contract.idl_parsed, sort_keys=True, indent=4)
-    else:
-        raise Exception("Unsupported HTTP method: %s" % request.method)
-
-    resp = make_response(j)
-    resp.headers['Content-Type'] = "application/json"
-    return resp
+@app.route("/", methods=["POST"])
+def rpc():
+    req = json.loads(request.data)
+    return jsonify(server.call(req))
 
 app.run(debug=True, host="127.0.0.1", port=9233)

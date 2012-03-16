@@ -85,11 +85,7 @@ class ConformTest(unittest.TestCase):
                             match = False
                         elif e_cols[3] != l_cols[3]:
                             match = False
-                        elif e_cols[3] == 'ok' and e_cols[4] == '':
-                            if l_cols[4] != '':
-                                match = False
-                        elif e_cols[3] == 'ok' and \
-                                json.loads(e_cols[4]) != json.loads(l_cols[4]):
+                        elif json.loads(e_cols[4]) != json.loads(l_cols[4]):
                             match = False
                         if not match:
                             msg = "line %d: %s != %s" % (i, expected[i], line)

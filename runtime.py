@@ -1,5 +1,7 @@
 
 import urllib2
+import uuid
+import sys
 try:
     import json
 except: 
@@ -13,6 +15,7 @@ ERR_INVALID_PARAMS = -32602
 ERR_INTERNAL = -32603
 
 # Our extensions
+ERR_UNKNOWN = -32000
 ERR_INVALID_RESP = -32001
 
 def contract_from_file(fname):
@@ -21,7 +24,7 @@ def contract_from_file(fname):
     f.close()
     return Contract(json.loads(j))
 
-class RpcException(Exception):
+class RpcException(Exception, json.JSONEncoder):
 
     def __init__(self, code, msg="", data=None):
         self.code = code
@@ -48,25 +51,80 @@ class Server(object):
         else:
             raise RpcException(ERR_INVALID_REQ, "Unknown interface: '%s'", iface_name)
 
-    def call(self, iface_name, func_name, params):
+    def call(self, req):
+        if isinstance(req, list):
+            if len(req) < 1:
+                return self._err(None, ERR_INVALID_REQ, "Invalid Request. Empty batch.")
+
+            resp = [ ]
+            for r in req:
+                resp.append(self._call_and_format(r))
+            return resp
+        else:
+            return self._call_and_format(req)
+
+    def _err(self, reqid, code, msg, data=None):
+        err = { "code": code, "message": msg }
+        if data:
+            err["data"] = data
+        return { "jsonrpc": "2.0", "id": reqid, "error": err }
+    
+    def _call_and_format(self, req):
+        if not isinstance(req, dict):
+            return self._err(None, ERR_INVALID_REQ, 
+                             "Invalid Request. %s is not an object." % str(req))
+
+        reqid = None
+        if req.has_key("id"):
+            reqid = req["id"]
+
+        try:
+            resp = self._call(req)
+            return { "jsonrpc": "2.0", "id": reqid, "result": resp }
+        except RpcException as e:
+            return self._err(reqid, e.code, e.msg, e.data)
+        except:
+            return self._err(reqid, ERR_UNKNOWN, str(sys.exc_info()))
+        
+
+    def _call(self, req):
+        if not req.has_key("method"):
+            raise RpcException(ERR_INVALID_REQ, "Invalid Request. No 'method'.")
+
+        method = req["method"]
+
+        if method == "barrister-idl":
+            return self.contract.idl_parsed
+
+        pos = method.find(".")
+        if pos == -1:
+            raise RpcException(ERR_METHOD_NOT_FOUND, "Method not found: %s" % method)
+
+        iface_name = method[:pos]
+        func_name  = method[pos+1:]
+
         if self.handlers.has_key(iface_name):
             iface_impl = self.handlers[iface_name]
             func = getattr(iface_impl, func_name)
             if func:
+                if req.has_key("params"):
+                    params = req["params"]
+                else:
+                    params = [ ]
 
                 if self.validate_req:
                     self.contract.validate_request(iface_name, func_name, params)
 
                 if params and len(params) > 0:
-                    resp = func(*params)
+                    result = func(*params)
                 else:
-                    resp = func()
+                    result = func()
 
                 if self.validate_resp:
-                    self.contract.validate_response(iface_name, func_name, resp)
-                return resp
+                    self.contract.validate_response(iface_name, func_name, result)
+                return result
             else:
-                msg = "Function '%s.%s' not found" % (iface_name, func_name)
+                msg = "Method '%s' not found" % (method)
                 raise RpcException(ERR_METHOD_NOT_FOUND, msg)
         else:
             msg = "No implementation of '%s' found" % (iface_name)
@@ -74,26 +132,20 @@ class Server(object):
 
 class HttpTransport(object):
 
-    def __init__(self, url, validate_request=True, validate_response=True):
-        self.validate_req  = validate_request
-        self.validate_resp = validate_response
+    def __init__(self, url, handlers=None, headers=None):
+        if not headers:
+            headers = { }
+        headers['Content-Type'] = 'application/json'
         self.url = url
-
-    def client(self):
-        resp = urllib2.urlopen(self.url)
-        idl_parsed = json.loads(resp.read())
-        resp.close()
-        contract = Contract(idl_parsed)
-        return Client(self, contract, 
-                      validate_request=self.validate_req,
-                      validate_response=self.validate_resp)
+        self.headers = headers
+        if handlers:
+            self.opener = urllib2.build_opener(*handlers)
+        else:
+            self.opener = urllib2.build_opener()
         
-    def call(self, iface_name, func_name, params):
-        data = json.dumps(params)
-        headers = {'Content-Type': 'application/json',
-                   'X-Barrister-Interface' : iface_name,
-                   'X-Barrister-Function' : func_name }
-        req = urllib2.Request(self.url, data, headers)
+    def call(self, req):
+        data = json.dumps(req)
+        req = urllib2.Request(self.url, data, self.headers)
         f = urllib2.urlopen(req)
         resp = f.read()
         f.close()
@@ -101,34 +153,32 @@ class HttpTransport(object):
 
 class InProcTransport(object):
 
-    def __init__(self, server, validate_request=True, validate_response=True):
-        self.validate_req  = validate_request
-        self.validate_resp = validate_response
+    def __init__(self, server):
         self.server = server
 
-    def client(self):
-        return Client(self, self.server.contract, 
-                      validate_request=self.validate_req,
-                      validate_response=self.validate_resp)
-        
-    def call(self, iface_name, func_name, params):
-        return self.server.call(iface_name, func_name, params)
+    def call(self, req):
+        return self.server.call(req)
 
 class Client(object):
     
-    def __init__(self, transport, contract, 
-                 validate_request=True, validate_response=True):
+    def __init__(self, transport, validate_request=True, validate_response=True,
+                 id_gen=None):
         self.transport = transport
-        self.contract  = contract
         self.validate_req  = validate_request
         self.validate_resp = validate_response
+        if not id_gen:
+            id_gen = lambda: uuid.uuid4().hex
+        req = {"jsonrpc": "2.0", "method": "barrister-idl", "id": "1"}
+        resp = transport.call(req)
+        self.contract = Contract(resp["result"])
         for k, v in self.contract.interfaces.items():
-            setattr(self, k, InterfaceClientProxy(self, v))
+            setattr(self, k, InterfaceClientProxy(self, v, id_gen))        
 
 class InterfaceClientProxy(object):
 
-    def __init__(self, client, iface):
+    def __init__(self, client, iface, id_gen):
         self.client = client
+        self.id_gen = id_gen
         iface_name = iface.name
         for func_name, func in iface.functions.items():
             setattr(self, func_name, self._caller(iface_name, func_name))
@@ -137,10 +187,24 @@ class InterfaceClientProxy(object):
         def caller(*params):
             if self.client.validate_req:
                 self.client.contract.validate_request(iface_name, func_name, params)
-            resp = self.client.transport.call(iface_name, func_name, params)
+            
+            method = "%s.%s" % (iface_name, func_name)
+            reqid = self.id_gen()
+            req = { "jsonrpc": "2.0", "id": reqid, "method": method, "params": params }
+            resp = self.client.transport.call(req)
+
+            if resp.has_key("error"):
+                e = resp["error"]
+                data = None
+                if e.has_key("data"):
+                    data = e["data"]
+                raise RpcException(e["code"], e["message"], data)
+            
+            result = resp["result"]
+
             if self.client.validate_resp:
-                self.client.contract.validate_response(iface_name, func_name, resp)
-            return resp
+                self.client.contract.validate_response(iface_name, func_name, result)
+            return result
         return caller
 
 class Contract(object):

@@ -102,7 +102,7 @@ class InProcTest(unittest.TestCase):
         self.server.add_handler("UserService", self.user_svc)
 
         transport = runtime.InProcTransport(self.server)
-        self.client = transport.client()
+        self.client = runtime.Client(transport)
 
     def test_add_handler_invalid(self):
         self.assertRaises(runtime.RpcException, self.server.add_handler, "foo", self.user_svc)

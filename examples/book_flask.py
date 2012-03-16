@@ -1,12 +1,9 @@
 #!/usr/bin/env python
 
-from flask import Flask, make_response, request
+from flask import Flask, make_response, request, jsonify
 import runtime
 import logging
-try:
-    import json
-except:
-    import simplejson as json
+import json
 
 class UserService(object):
 
@@ -27,20 +24,11 @@ def other():
     resp = make_response("fooasdlfjaslkdfjasldkfjasldkfjasldkfjasldkfjasldfkjasldfkjasldfkjasldkfjasldfkjasldkfjasldkfjasldkfjasldkfjasldkfjasldkfjasldkfjasldfkjasldfkjasdlfkjasldfkajsdfs")
     return resp
 
-@app.route("/book", methods=["GET","POST"])
-def book():
-    if request.method == "POST":
-        iface_name = request.headers["X-Barrister-Interface"]
-        func_name  = request.headers["X-Barrister-Function"]
-        params     = json.loads(request.data)
-        j = json.dumps(book_server.call(iface_name, func_name, params))
-    elif request.method == "GET":
-        j = json.dumps(book_server.contract.idl_parsed, sort_keys=True, indent=4)
-    else:
-        raise Exception("Unsupported HTTP method: %s" % request.method)
-
-    resp = make_response(j)
-    resp.headers['Content-Type'] = "application/json"
-    return resp
+@app.route("/book", methods=["POST"])
+def book_rpc():
+    req = json.loads(request.data)
+    return jsonify(book_server.call(req))
 
 app.run(debug=True)
+
+

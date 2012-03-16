@@ -2,15 +2,14 @@
 
 import sys
 import runtime
-import urllib2
 import codecs
 try:
     import json
 except:
     import simplejson as json
 
-trans    = runtime.HttpTransport("http://localhost:9233/", validate_request=False)
-client   = trans.client()
+trans    = runtime.HttpTransport("http://localhost:9233/")
+client   = runtime.Client(trans, validate_request=False)
 
 f   = open(sys.argv[1])
 out = codecs.open(sys.argv[2], "w", "utf-8")
@@ -30,10 +29,10 @@ for line in lines:
         svc = getattr(client, iface)
         fn = getattr(svc, func)
         resp = fn(*p)
-    except urllib2.HTTPError as e:
-        status = "err"
-        resp = ""
     except runtime.RpcException as e:
+        status = "rpcerr"
+        resp = e.code
+    except:
         status = "err"
         resp = ""
 
