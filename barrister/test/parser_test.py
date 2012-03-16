@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 import unittest
-from barrister import parse_str, IdlParseException
+from barrister import parse, IdlParseException
 
-class BarristerTest(unittest.TestCase):
+class ParserTest(unittest.TestCase):
 
     def test_parse_comment(self):
         idl = """
@@ -18,7 +18,7 @@ struct Person {
                      { "type" : "struct", "name" : "Person", "extends" : "",
                        "comment" : "this is a person", "fields" : [
                     { "type" : "int", "name" : "age", "comment" : "" } ] } ]
-        self.assertEquals(expected, parse_str(idl))
+        self.assertEquals(expected, parse(idl))
 
     def test_parse_struct(self):
         idl = """struct Person {
@@ -30,7 +30,7 @@ age int
                        "comment" : "", "extends" : "",
                        "fields" : [ { "type" : "string", "name" : "email", "comment":"" },
                                     { "type" : "int", "name" : "age", "comment":"" } ] } ]
-        self.assertEquals(expected, parse_str(idl))
+        self.assertEquals(expected, parse(idl))
 
     def test_parse_multiple(self):
         idl = """struct Person { email string } 
@@ -43,7 +43,7 @@ struct Animal { furry bool }"""
                        "type" : "struct", 
                        "comment" : "", "extends" : "",
                        "fields" : [ { "type" : "bool", "name" : "furry", "comment":"" } ] } ]
-        self.assertEquals(expected, parse_str(idl))
+        self.assertEquals(expected, parse(idl))
 
     def test_parse_enum(self):
         idl = """enum Status { success fail
@@ -52,7 +52,7 @@ invalid }"""
                        "values" : [ { "value" : "success", "comment" : "" },
                                     { "value" : "fail", "comment" : "" },
                                     { "value" : "invalid", "comment" : "" } ] } ]
-        self.assertEquals(expected, parse_str(idl))
+        self.assertEquals(expected, parse(idl))
 
     def test_parse_interface(self):
         idl = """interface MyService {
@@ -70,12 +70,12 @@ invalid }"""
                     { "name" : "login", "comment" : "",
                       "returns" : "LoginResponse", "params" : [
                             { "type" : "LoginRequest", "name" : "req" } ] } ] } ]
-        self.assertEquals(expected, parse_str(idl, validate=False))
+        self.assertEquals(expected, parse(idl, validate=False))
 
     def test_invalid_struct(self):
         idl = """struct foo { """
         try:
-            parse_str(idl)
+            parse(idl)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 1, "message" : "Unexpected end of file" } ]
@@ -85,7 +85,7 @@ invalid }"""
         idls = [ "struct  {", "enum {", "interface { " ]
         for idl in idls:
             try:
-                parse_str(idl)
+                parse(idl)
                 self.fail("should have thrown exception")
             except IdlParseException as e:
                 expected = [ { "line": 1, "message" : "Missing identifier" } ]
@@ -98,7 +98,7 @@ invalid }"""
         expected = [ { "name" : "Status", "type" : "enum", "comment" : "",
                        "values" : [ { "comment" : "Request successful",
                                       "value": "success" } ] } ]
-        self.assertEquals(expected, parse_str(idl))        
+        self.assertEquals(expected, parse(idl))        
 
     def test_struct_comments(self):
         idl = """struct Animal   {
@@ -108,7 +108,7 @@ invalid }"""
                        "extends" : "",
                        "fields" : [ { "comment" : "fur color",
                                       "name" : "color", "type" : "string" } ] } ]
-        self.assertEquals(expected, parse_str(idl))        
+        self.assertEquals(expected, parse(idl))        
 
     def test_function_comments(self):
         idl = """interface FooService {
@@ -124,7 +124,7 @@ invalid }"""
                       "params" : [
                             { "type" : "int", "name" : "a" },
                             { "type" : "int", "name" : "b" } ] } ] } ]
-        self.assertEquals(expected, parse_str(idl))        
+        self.assertEquals(expected, parse(idl))        
 
     def test_interface_comments(self):
         idl = """// FooService is a..
@@ -138,7 +138,7 @@ interface FooService {
                     { "name" : "blah99", "returns" : "blah_Response",
                       "comment" : "", "params" : [ ] }
                     ] } ]
-        self.assertEquals(expected, parse_str(idl, validate=False))
+        self.assertEquals(expected, parse(idl, validate=False))
         
 
     def test_extends_struct(self):
@@ -157,7 +157,7 @@ struct Cat extends Animal {
                      { "name" : "Cat", "type" : "struct", 
                        "extends" : "Animal", "comment" : "",
                        "fields" : [ { "name" : "purr_volume", "type" : "int", "comment":"" } ] } ]
-        self.assertEquals(expected, parse_str(idl))
+        self.assertEquals(expected, parse(idl))
 
     def test_no_dupe_types(self):
         idl = """struct Animal {
@@ -177,7 +177,7 @@ interface Blarg {
     do_other() bool
 }"""
         try:
-            parse_str(idl)
+            parse(idl)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 4, "message" : "type Animal already defined" },
@@ -193,7 +193,7 @@ struct Location {
     residents []Animal
 }"""
         try:
-            parse_str(idl)
+            parse(idl)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 0, "message" : "cycle detected in: struct Animal" },
@@ -208,7 +208,7 @@ struct TaskResult {
     toLoan []Book
     toAck  []Book
 }"""
-        parse_str(idl)
+        parse(idl)
 
     def test_interface_cant_be_field_type(self):
         idl = """struct Animal {
@@ -218,7 +218,7 @@ interface FooService {
     do_something() bool
 }"""
         try:
-            parse_str(idl)
+            parse(idl)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 0, "message" : "interface FooService cannot be a field type" } ]
@@ -235,7 +235,7 @@ struct Blarg extends Foo {
    a int
 }"""
         try:
-            parse_str(idl)
+            parse(idl)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 0, "message" : "undefined type: Color" },
@@ -256,7 +256,7 @@ struct Manx extends Cat {
    gender bool
 }"""
         try:
-            parse_str(idl)
+            parse(idl)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 0, "message" : "Cat cannot redefine parent field color" },
@@ -269,7 +269,7 @@ struct Animal extends Status {
     color string
 }"""
         try:
-            parse_str(idl)
+            parse(idl)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 0, "message" : "Animal cannot extend enum Status" } ]
@@ -280,7 +280,7 @@ struct Animal extends Status {
     color string
 }"""
         try:
-            parse_str(idl)
+            parse(idl)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 0, "message" : "Animal cannot extend float" } ]
@@ -289,7 +289,7 @@ struct Animal extends Status {
     def test_struct_must_have_fields(self):
         idl = "struct Animal { }"
         try:
-            parse_str(idl)
+            parse(idl)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 1, "message" : "Animal must have at least one field" } ]
@@ -298,7 +298,7 @@ struct Animal extends Status {
     def test_interface_must_have_funcs(self):
         idl = "interface FooService { }"
         try:
-            parse_str(idl)
+            parse(idl)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 1, "message" : "FooService must have at least one function" } ]
@@ -307,7 +307,7 @@ struct Animal extends Status {
     def test_enum_must_have_values(self):
         idl = "enum Status { }"
         try:
-            parse_str(idl)
+            parse(idl)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 1, "message" : "Status must have at least one value" } ]
@@ -322,7 +322,7 @@ interface FooService {
     subtract(a int, b int) BaseResponse
 }"""
         # should work - cycle detection should reset per function
-        parse_str(idl)
+        parse(idl)
 
     def test_interface_cant_be_param(self):
         idl = """interface BlargService {
@@ -333,7 +333,7 @@ interface FooService {
     subtract(a int, b int) BlargService
 }"""
         try:
-            parse_str(idl)
+            parse(idl)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 0, "message" : "interface BlargService cannot be a field type" },

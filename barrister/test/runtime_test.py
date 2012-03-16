@@ -4,7 +4,6 @@ import uuid
 import time
 import unittest
 import barrister
-import runtime
 
 idl = """
 struct User {
@@ -101,19 +100,19 @@ class UserServiceImpl(object):
     def _resp(self, status, message):
         return { "status" : status, "message" : message }
 
-class InProcTest(unittest.TestCase):
+class RuntimeTest(unittest.TestCase):
 
     def setUp(self):
-        contract = runtime.Contract(barrister.parse_str(idl))
+        contract = barrister.Contract(barrister.parse(idl))
         self.user_svc = UserServiceImpl()
-        self.server = runtime.Server(contract)
+        self.server = barrister.Server(contract)
         self.server.add_handler("UserService", self.user_svc)
 
-        transport = runtime.InProcTransport(self.server)
-        self.client = runtime.Client(transport)
+        transport = barrister.InProcTransport(self.server)
+        self.client = barrister.Client(transport)
 
     def test_add_handler_invalid(self):
-        self.assertRaises(runtime.RpcException, self.server.add_handler, "foo", self.user_svc)
+        self.assertRaises(barrister.RpcException, self.server.add_handler, "foo", self.user_svc)
 
     def test_user_crud(self):
         svc = self.client.UserService
@@ -147,7 +146,7 @@ class InProcTest(unittest.TestCase):
                 else:
                     c[0]()
                 self.fail("Expected RpcException for: %s" % str(c))
-            except runtime.RpcException:
+            except barrister.RpcException:
                 pass
 
     def test_invalid_resp(self):
@@ -172,7 +171,7 @@ class InProcTest(unittest.TestCase):
             try:
                 svc.get("123")
                 self.fail("Expected RpcException for response: %s" % str(resp))
-            except runtime.RpcException:
+            except barrister.RpcException:
                 pass
 
     def test_batch(self):
