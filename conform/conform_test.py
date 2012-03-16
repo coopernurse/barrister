@@ -79,8 +79,8 @@ class ConformTest(unittest.TestCase):
                         e_cols = expected[i].split("|")
                         l_cols = line.split("|")
                         match = True
-                        print expected[i]
-                        print line
+                        #print expected[i]
+                        #print line
                         if len(e_cols) != len(l_cols):
                             match = False
                         elif e_cols[3] != l_cols[3]:
@@ -90,7 +90,7 @@ class ConformTest(unittest.TestCase):
                         if not match:
                             msg = "line %d: %s != %s" % (i, expected[i], line)
                             fails.append(msg)
-                            print msg
+                            #print msg
                         i += 1
                         if i > len(expected):
                             break

@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 
 import sys
-import runtime
+import barrister
 import codecs
 try:
     import json
 except:
     import simplejson as json
 
-trans    = runtime.HttpTransport("http://localhost:9233/")
-client   = runtime.Client(trans, validate_request=False)
+trans    = barrister.HttpTransport("http://localhost:9233/")
+client   = barrister.Client(trans, validate_request=False)
 
 f   = open(sys.argv[1])
 out = codecs.open(sys.argv[2], "w", "utf-8")
@@ -29,10 +29,11 @@ for line in lines:
         svc = getattr(client, iface)
         fn = getattr(svc, func)
         resp = fn(*p)
-    except runtime.RpcException as e:
+    except barrister.RpcException as e:
         status = "rpcerr"
         resp = e.code
     except:
+        print "ERR: %s" % str(sys.exc_info())
         status = "err"
         resp = ""
 

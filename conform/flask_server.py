@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from flask import Flask, request, jsonify
-import runtime
+import barrister
 import logging
 import json
 import math
@@ -38,7 +38,7 @@ class B(object):
 logging.basicConfig(level=logging.WARN)
 app = Flask(__name__)
 
-server = runtime.Server(runtime.contract_from_file(sys.argv[1]))
+server = barrister.Server(barrister.contract_from_file(sys.argv[1]))
 server.add_handler("A", A())
 server.add_handler("B", B())
 
