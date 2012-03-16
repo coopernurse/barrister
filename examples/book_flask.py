@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from flask import Flask, make_response, request, jsonify
+from flask import Flask, request, jsonify
 import runtime
 import logging
 import json
@@ -18,11 +18,6 @@ app = Flask(__name__)
 
 book_server = runtime.Server(runtime.contract_from_file("book.json"))
 book_server.add_handler("UserService", UserService())
-
-@app.route("/other", methods=["GET","POST"])
-def other():
-    resp = make_response("fooasdlfjaslkdfjasldkfjasldkfjasldkfjasldkfjasldfkjasldfkjasldfkjasldkfjasldfkjasldkfjasldkfjasldkfjasldkfjasldkfjasldkfjasldkfjasldfkjasldfkjasdlfkjasldfkajsdfs")
-    return resp
 
 @app.route("/book", methods=["POST"])
 def book_rpc():

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from flask import Flask, make_response, request, jsonify
+from flask import Flask, request, jsonify
 import runtime
 import logging
 import json
