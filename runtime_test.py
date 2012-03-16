@@ -151,7 +151,6 @@ class InProcTest(unittest.TestCase):
                 pass
 
     def test_invalid_resp(self):
-        
         svc = self.client.UserService
         responses = [ 
             { }, # missing fields
@@ -175,6 +174,36 @@ class InProcTest(unittest.TestCase):
                 self.fail("Expected RpcException for response: %s" % str(resp))
             except runtime.RpcException:
                 pass
+
+    def test_batch(self):
+        batch = self.client.start_batch()
+        batch.UserService.create(newUser(userId="1"))
+        batch.UserService.create(newUser(userId="2"))
+        batch.UserService.countUsers()
+        result = batch.send()
+        self.assertEquals(3, result.count)
+        self.assertEquals(result.get(0)["message"], "user created")
+        self.assertEquals(result.get(1)["message"], "user created")
+        self.assertEquals(2, result.get(2)["count"])
+
+    def _test_bench(self):
+        start = time.time()
+        stop = start+1
+        num = 0
+        while time.time() < stop:
+            self.client.UserService.countUsers()
+            num += 1
+        elapsed = time.time() - start
+        print "test_bench: num=%d microsec/op=%d" % (num, (elapsed*1000000)/num)
+
+        start = time.time()
+        stop = start+1
+        num = 0
+        while time.time() < stop:
+            self.client.UserService.create(newUser())
+            num += 1
+        elapsed = time.time() - start
+        print "test_bench: num=%d microsec/op=%d" % (num, (elapsed*1000000)/num)
 
 if __name__ == "__main__":
     unittest.main()

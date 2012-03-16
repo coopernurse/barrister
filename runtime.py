@@ -1,4 +1,5 @@
 
+import copy
 import urllib2
 import uuid
 import sys
@@ -23,6 +24,15 @@ def contract_from_file(fname):
     j = f.read()
     f.close()
     return Contract(json.loads(j))
+
+def unpack_method(method):
+    pos = method.find(".")
+    if pos == -1:
+        raise RpcException(ERR_METHOD_NOT_FOUND, "Method not found: %s" % method)
+
+    iface_name = method[:pos]
+    func_name  = method[pos+1:]
+    return iface_name, func_name
 
 class RpcException(Exception, json.JSONEncoder):
 
@@ -96,12 +106,7 @@ class Server(object):
         if method == "barrister-idl":
             return self.contract.idl_parsed
 
-        pos = method.find(".")
-        if pos == -1:
-            raise RpcException(ERR_METHOD_NOT_FOUND, "Method not found: %s" % method)
-
-        iface_name = method[:pos]
-        func_name  = method[pos+1:]
+        iface_name, func_name = unpack_method(method)
 
         if self.handlers.has_key(iface_name):
             iface_impl = self.handlers[iface_name]
@@ -143,7 +148,7 @@ class HttpTransport(object):
         else:
             self.opener = urllib2.build_opener()
         
-    def call(self, req):
+    def request(self, req):
         data = json.dumps(req)
         req = urllib2.Request(self.url, data, self.headers)
         f = urllib2.urlopen(req)
@@ -156,7 +161,7 @@ class InProcTransport(object):
     def __init__(self, server):
         self.server = server
 
-    def call(self, req):
+    def request(self, req):
         return self.server.call(req)
 
 class Client(object):
@@ -168,44 +173,114 @@ class Client(object):
         self.validate_resp = validate_response
         if not id_gen:
             id_gen = lambda: uuid.uuid4().hex
+        self.id_gen = id_gen
         req = {"jsonrpc": "2.0", "method": "barrister-idl", "id": "1"}
-        resp = transport.call(req)
+        resp = transport.request(req)
         self.contract = Contract(resp["result"])
         for k, v in self.contract.interfaces.items():
-            setattr(self, k, InterfaceClientProxy(self, v, id_gen))        
+            setattr(self, k, InterfaceClientProxy(self, v))
+
+    def call(self, iface_name, func_name, params):
+        req  = self.to_request(iface_name, func_name, params)
+        resp = self.transport.request(req)
+        return self.to_result(iface_name, func_name, resp)
+
+    def to_request(self, iface_name, func_name, params):
+        if self.validate_req:
+            self.contract.validate_request(iface_name, func_name, params)
+            
+        method = "%s.%s" % (iface_name, func_name)
+        reqid = self.id_gen()
+        return { "jsonrpc": "2.0", "id": reqid, "method": method, "params": params }
+
+    def to_result(self, iface_name, func_name, resp):
+        if resp.has_key("error"):
+            e = resp["error"]
+            data = None
+            if e.has_key("data"):
+                data = e["data"]
+            raise RpcException(e["code"], e["message"], data)
+            
+        result = resp["result"]
+        
+        if self.validate_resp:
+            self.contract.validate_response(iface_name, func_name, result)
+        return result
+
+    def start_batch(self):
+        return Batch(self)
 
 class InterfaceClientProxy(object):
 
-    def __init__(self, client, iface, id_gen):
+    def __init__(self, client, iface):
         self.client = client
-        self.id_gen = id_gen
         iface_name = iface.name
         for func_name, func in iface.functions.items():
             setattr(self, func_name, self._caller(iface_name, func_name))
 
     def _caller(self, iface_name, func_name):
         def caller(*params):
-            if self.client.validate_req:
-                self.client.contract.validate_request(iface_name, func_name, params)
-            
-            method = "%s.%s" % (iface_name, func_name)
-            reqid = self.id_gen()
-            req = { "jsonrpc": "2.0", "id": reqid, "method": method, "params": params }
-            resp = self.client.transport.call(req)
+            return self.client.call(iface_name, func_name, params)
+        return caller        
 
-            if resp.has_key("error"):
-                e = resp["error"]
-                data = None
-                if e.has_key("data"):
-                    data = e["data"]
-                raise RpcException(e["code"], e["message"], data)
-            
-            result = resp["result"]
+class Batch(object):
 
-            if self.client.validate_resp:
-                self.client.contract.validate_response(iface_name, func_name, result)
-            return result
-        return caller
+    def __init__(self, client):
+        self.client = client
+        self.req_list = [ ]
+        self.sent = False
+        for k, v in client.contract.interfaces.items():
+            setattr(self, k, InterfaceClientProxy(self, v))
+
+    def call(self, iface_name, func_name, params):
+        if self.sent:
+            raise Exception("Batch already sent. Cannot add more calls.")
+        else:
+            req = self.client.to_request(iface_name, func_name, params)
+            self.req_list.append(req)
+
+    def send(self):
+        if self.sent:
+            raise Exception("Batch already sent. Cannot send() again.")
+        else:
+            resp = self.client.transport.request(self.req_list)
+            self.sent = True
+            return BatchResult(self, self.req_list, resp)
+
+class BatchResult(object):
+
+    def __init__(self, batch, req_list, resp):
+        if len(req_list) != len(resp):
+            msg = "Batch response length %d != request %d" % (len(resp), len(req_list))
+            raise RpcException(ERR_INVALID_RESP, msg)
+
+        self.id_to_method = { }
+        by_id = { }
+        for r in resp:
+            reqid = r["id"]
+            by_id[reqid] = r
+
+        in_req_order = [ ]
+        for r in req_list:
+            reqid = r["id"]
+            if not by_id.has_key(reqid):
+                msg = "Batch response missing result for request id: %s" % reqid
+                raise RpcException(ERR_INVALID_RESP, msg)
+            in_req_order.append(by_id[reqid])
+            self.id_to_method[reqid] = r["method"]
+
+        self.batch = batch
+        self.resp = in_req_order
+        self.count = len(in_req_order)
+
+    def get(self, i):
+        if i < self.count:
+            resp = self.resp[i]
+            method = self.id_to_method[resp["id"]]
+            iface_name, func_name = unpack_method(method)
+            return self.batch.client.to_result(iface_name, func_name, resp)
+        else:
+            raise IndexError("%d >= result size: %d" % (i, self.count))
 
 class Contract(object):
 
