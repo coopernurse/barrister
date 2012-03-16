@@ -1,8 +1,8 @@
 
-import copy
 import urllib2
 import uuid
 import sys
+import itertools
 try:
     import json
 except: 
@@ -33,6 +33,13 @@ def unpack_method(method):
     iface_name = method[:pos]
     func_name  = method[pos+1:]
     return iface_name, func_name
+
+def idgen_uuid():
+    return uuid.uuid4()
+
+idgen_seq_counter = itertools.count()
+def idgen_seq():
+    return str(idgen_seq_counter.next())
 
 class RpcException(Exception, json.JSONEncoder):
 
@@ -167,12 +174,10 @@ class InProcTransport(object):
 class Client(object):
     
     def __init__(self, transport, validate_request=True, validate_response=True,
-                 id_gen=None):
+                 id_gen=idgen_uuid):
         self.transport = transport
         self.validate_req  = validate_request
         self.validate_resp = validate_response
-        if not id_gen:
-            id_gen = lambda: uuid.uuid4().hex
         self.id_gen = id_gen
         req = {"jsonrpc": "2.0", "method": "barrister-idl", "id": "1"}
         resp = transport.request(req)
