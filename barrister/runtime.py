@@ -35,7 +35,7 @@ def unpack_method(method):
     return iface_name, func_name
 
 def idgen_uuid():
-    return uuid.uuid4()
+    return uuid.uuid4().hex
 
 idgen_seq_counter = itertools.count()
 def idgen_seq():
