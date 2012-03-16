@@ -8,7 +8,8 @@ try:
 except:
     import simplejson as json
 
-def to_html(title, sections):
+def docco_html(title, idl_parsed):
+    sections = to_sections(idl_parsed)
     s = """<!DOCTYPE html>
 <html>
 <head>
@@ -157,5 +158,4 @@ if __name__ == "__main__":
         f.close()
 
     idl_parsed = json.loads(j)
-    sections = to_sections(idl_parsed)
-    print to_html(options.title, sections)
+    print docco_html(options.title, idl_parsed)
