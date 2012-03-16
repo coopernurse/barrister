@@ -104,7 +104,7 @@ class UserServiceImpl(object):
 class InProcTest(unittest.TestCase):
 
     def setUp(self):
-        contract = runtime.Contract(barrister.parse(idl))
+        contract = runtime.Contract(barrister.parse_str(idl))
         self.user_svc = UserServiceImpl()
         self.server = runtime.Server(contract)
         self.server.add_handler("UserService", self.user_svc)

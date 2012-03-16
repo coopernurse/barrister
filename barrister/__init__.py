@@ -1,0 +1,19 @@
+# -*- coding: utf-8 -*-
+"""
+    barrister
+    ~~~~~~~~~
+
+    A RPC toolkit for building lightweight reliable services.  Ideal for
+    both static and dynamic languages.
+
+    :copyright: (c) 2012 by James Cooper.
+    :license: MIT, see LICENSE for more details.
+"""
+__version__ = '0.1.0'
+
+from .runtime import contract_from_file, idgen_uuid, idgen_seq
+from .runtime import RpcException, Server, HttpTransport, InProcTransport
+from .runtime import Client, Batch, BatchResult
+from .runtime import Contract, Interface, Enum, Struct, Function
+from .parser import parse, IdlParseException, IdlScanner
+from .docco import docco_html
