@@ -33,7 +33,6 @@ class Server(object):
             iface_impl = self.handlers[iface_name]
             func = getattr(iface_impl, func_name)
             if func:
-                print "server params: %s" % str(params)
 
                 if self.validate_req:
                     self.contract.validate_request(iface_name, func_name, params)
@@ -116,7 +115,6 @@ class InterfaceClientProxy(object):
 
     def _caller(self, iface_name, func_name):
         def caller(*params):
-            print "client params: %s" % str(params)
             if self.client.validate_req:
                 self.client.contract.validate_request(iface_name, func_name, params)
             resp = self.client.transport.call(iface_name, func_name, params)
