@@ -2,8 +2,18 @@
 import urllib2
 try:
     import json
-except:
+except: 
     import simplejson as json
+
+# JSON-RPC standard error codes
+ERR_PARSE = -32700
+ERR_INVALID_REQ = -32600
+ERR_METHOD_NOT_FOUND = -32601
+ERR_INVALID_PARAMS = -32602
+ERR_INTERNAL = -32603
+
+# Our extensions
+ERR_INVALID_RESP = -32001
 
 def contract_from_file(fname):
     f = open(fname)
@@ -12,7 +22,17 @@ def contract_from_file(fname):
     return Contract(json.loads(j))
 
 class RpcException(Exception):
-    pass
+
+    def __init__(self, code, msg="", data=None):
+        self.code = code
+        self.msg = msg
+        self.data = data
+
+    def __str__(self):
+        s = "RpcException: code=%d msg=%s" % (self.code, self.msg)
+        if self.data:
+            s += "%s data=%s" % (s, str(self.data))
+        return s
 
 class Server(object):
 
@@ -26,7 +46,7 @@ class Server(object):
         if self.contract.has_interface(iface_name):
             self.handlers[iface_name] = handler
         else:
-            raise RpcException("Unknown interface: '%s'", iface_name)
+            raise RpcException(ERR_INVALID_REQ, "Unknown interface: '%s'", iface_name)
 
     def call(self, iface_name, func_name, params):
         if self.handlers.has_key(iface_name):
@@ -47,10 +67,10 @@ class Server(object):
                 return resp
             else:
                 msg = "Function '%s.%s' not found" % (iface_name, func_name)
-                raise RpcException(msg)
+                raise RpcException(ERR_METHOD_NOT_FOUND, msg)
         else:
             msg = "No implementation of '%s' found" % (iface_name)
-            raise RpcException(msg)        
+            raise RpcException(ERR_METHOD_NOT_FOUND, msg)        
 
 class HttpTransport(object):
 
@@ -152,13 +172,13 @@ class Contract(object):
         elif self.interfaces.has_key(name):
             return self.interfaces[name]
         else:
-            raise RpcException("Unknown entity: '%s'", name)
+            raise RpcException(ERR_INVALID_PARAMS, "Unknown entity: '%s'", name)
 
     def struct(self, struct_name):
         if self.structs.has_key(struct_name):
             return self.structs[struct_name]
         else:
-            raise RpcException("Unknown struct: '%s'", struct_name)
+            raise RpcException(ERR_INVALID_PARAMS, "Unknown struct: '%s'", struct_name)
 
     def has_interface(self, iface_name):
         return self.interfaces.has_key(iface_name)
@@ -167,7 +187,7 @@ class Contract(object):
         if self.has_interface(iface_name):
             return self.interfaces[iface_name]
         else:
-            raise RpcException("Unknown interface: '%s'", iface_name)
+            raise RpcException(ERR_INVALID_PARAMS, "Unknown interface: '%s'", iface_name)
 
     def validate(self, expected_type, val, allow_missing=True):
         if expected_type.find("[]") == 0:
@@ -204,7 +224,8 @@ class Interface(object):
         if self.functions.has_key(func_name):
             return self.functions[func_name]
         else:
-            raise RpcException("%s: Unknown function: '%s'", self.name, func_name)
+            raise RpcException(ERR_METHOD_NOT_FOUND, 
+                               "%s: Unknown function: '%s'", self.name, func_name)
 
 class Enum(object):
 
@@ -275,7 +296,8 @@ class Function(object):
     def validate_params(self, params):
         if len(self.params) != len(params):
             vals = (self.full_name, len(self.params), len(params))
-            raise RpcException("Function '%s' expects %d param(s). %d given." % vals)
+            raise RpcException(ERR_INVALID_PARAMS,
+                               "Function '%s' expects %d param(s). %d given." % vals)
         i = 0
         for p in self.params:
             self.validate(p, params[i])
@@ -286,11 +308,11 @@ class Function(object):
         if not ok:
             vals = (self.full_name, str(resp), msg)
             msg = "Function '%s' invalid response: '%s'. %s" % vals
-            raise RpcException(msg)
+            raise RpcException(ERR_INVALID_RESP, msg)
 
     def validate(self, expected, param):
         ok, msg = self.contract.validate(expected["type"], param)
         if not ok:
             vals = (self.full_name, expected["name"], msg)
             msg = "Function '%s' invalid param '%s'. %s" % vals
-            raise RpcException(msg)
+            raise RpcException(ERR_INVALID_PARAMS, msg)
