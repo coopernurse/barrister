@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from barrister import parse, docco_html
+from barrister.parser import parse, docco_html
 import optparse
 import sys
 try:

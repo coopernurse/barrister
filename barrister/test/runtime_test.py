@@ -4,6 +4,7 @@ import uuid
 import time
 import unittest
 import barrister
+from barrister.parser import parse
 
 idl = """
 struct User {
@@ -103,7 +104,7 @@ class UserServiceImpl(object):
 class RuntimeTest(unittest.TestCase):
 
     def setUp(self):
-        contract = barrister.Contract(barrister.parse(idl))
+        contract = barrister.Contract(parse(idl))
         self.user_svc = UserServiceImpl()
         self.server = barrister.Server(contract)
         self.server.add_handler("UserService", self.user_svc)

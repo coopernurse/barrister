@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import unittest
-from barrister import parse, IdlParseException
+from barrister.parser import parse, IdlParseException
 
 class ParserTest(unittest.TestCase):
 

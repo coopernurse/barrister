@@ -15,5 +15,4 @@ from .runtime import contract_from_file, idgen_uuid, idgen_seq
 from .runtime import RpcException, Server, HttpTransport, InProcTransport
 from .runtime import Client, Batch, BatchResult
 from .runtime import Contract, Interface, Enum, Struct, Function
-from .parser import parse, IdlParseException, IdlScanner
 from .docco import docco_html
