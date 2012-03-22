@@ -14,9 +14,21 @@ except:
 
 # Barrister conformance test runner
 
+home = os.environ["HOME"]
+m2_jackson = "%s/.m2/repository/org/codehaus/jackson" % home
+jackson_deps = [ "jackson-mapper-asl/1.9.4/jackson-mapper-asl-1.9.4.jar",
+                 "jackson-core-asl/1.9.4/jackson-core-asl-1.9.4.jar" ]
+barrister_java = "../../barrister-java"
+if os.environ.has_key("BARRISTER_JAVA"):
+    barrister_java = os.environ["BARRISTER_JAVA"]
+java_cp = "%s/target/classes:%s/conform/target/classes" % (barrister_java, barrister_java)
+for d in jackson_deps:
+    java_cp += ":%s/%s" % (m2_jackson, d)
+
 clients = [ 
     # format: name, command line
-    [ "python-client", ["python", "client.py"] ]
+    [ "python-client", ["python", "client.py"] ],
+    [ "java-client", ["java", "-cp", java_cp, "com.bitmechanic.barrister.conform.Client" ] ]
 ]
 
 verbose = os.environ.has_key('CONFORM_VERBOSE')
@@ -35,7 +47,8 @@ class Runner(threading.Thread):
 
     def run(self):
         log("[%s] Starting process: %s" % (self.name, " ".join(self.cmd)))
-        self.proc = Popen(self.cmd, stdout=PIPE, stderr=PIPE, close_fds=False, shell=False)
+        self.proc = Popen(self.cmd, stdout=PIPE, stderr=PIPE, close_fds=False, 
+                          shell=False)
         out, err = self.proc.communicate()
         for line in out.split("\n"):
             log("[%s out] %s" % (self.name, line))
@@ -64,6 +77,7 @@ class ConformTest(unittest.TestCase):
             s_proc.start()
             time.sleep(1)
             for c_name, c_cmd in clients:
+                print "Testing client '%s' vs server '%s'" % (c_name, s_name)
                 outfile = "%s-to-%s.out" % (c_name, s_name)
                 c_cmd.extend([infile, outfile])
                 c_proc = Runner(c_name, c_cmd)
@@ -96,9 +110,11 @@ class ConformTest(unittest.TestCase):
                             break
                     out.close()
                     if len(fails) > 0:
-                        self.fail("client %s outfile had %d mismatches. first=%s" % (c_name, len(fails), fails[0]))
+                        err = (c_name, len(fails), fails[0])
+                        self.fail("client %s outfile had %d mismatches. first=%s" % err)
                     elif len(expected) != i:
-                        self.fail("client produced %d lines - expected %d" % (i, len(expected)))
+                        err = (i, len(expected))
+                        self.fail("client produced %d lines - expected %d" % err)
         finally:
             r = urllib2.urlopen("http://localhost:9233/exit")
             r.read()

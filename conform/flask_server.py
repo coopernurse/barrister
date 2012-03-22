@@ -22,7 +22,7 @@ class A(object):
         return math.sqrt(a)
 
     def repeat(self, req):
-        resp = { "count" : req["count"], "items" : [ ] }
+        resp = { "status" : "ok", "count" : req["count"], "items" : [ ] }
         for i in range(req["count"]):
             resp["items"].append(req["to_repeat"])
         return resp
@@ -51,6 +51,7 @@ def exit():
 
 @app.route("/", methods=["POST"])
 def rpc():
+    #print request.data
     req = json.loads(request.data)
     return jsonify(server.call(req))
 

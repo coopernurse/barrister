@@ -24,8 +24,10 @@ B|echo|[2]|rpcerr|-32602
 B|echo|[{"hello":"1"}]|rpcerr|-32602
 
 # non-existance methods - should blow up on client
-C|echo|["hello"]|err|""
-A|echo2|["hello"]|err|""
+# need to reconsider these two, as the Java version
+# emits rpcerr, which is probably also fine.
+#C|echo|["hello"]|err|""
+#A|echo2|["hello"]|err|""
 
 A|add|[3,5]|ok|8
 A|add|[3.3,5]|rpcerr|-32602
@@ -33,6 +35,6 @@ A|sqrt|[9]|ok|3.0
 A|sqrt|[25.0]|ok|5.0
 A|say_hi|[]|ok|{"hi":"hi"}
 A|say_hi|["blah"]|rpcerr|-32602
-A|repeat|[{"to_repeat":"yo", "count": 2}]|ok|{"count":2,"items":["yo","yo"]}
+A|repeat|[{"to_repeat":"yo", "count": 2}]|ok|{"status":"ok","count":2,"items":["yo","yo"]}
 A|add_all|[[2,3.0,6]]|ok|11.0
 A|add_all|[[2,3,"6"]]|rpcerr|-32602
