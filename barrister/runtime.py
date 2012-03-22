@@ -127,8 +127,11 @@ class Server(object):
                 if self.validate_req:
                     self.contract.validate_request(iface_name, func_name, params)
 
-                if params and len(params) > 0:
-                    result = func(*params)
+                if params:
+                    if isinstance(params, list):
+                        result = func(*params)
+                    else:
+                        result = func(params)
                 else:
                     result = func()
 
@@ -444,14 +447,26 @@ class Function(object):
         self.full_name = "%s.%s" % (iface_name, self.name)
         
     def validate_params(self, params):
-        if len(self.params) != len(params):
-            vals = (self.full_name, len(self.params), len(params))
+        plen = 0
+        if params != None:
+            if isinstance(params, list):
+                plen = len(params)
+            else:
+                plen = 1
+
+        if len(self.params) != plen:
+            vals = (self.full_name, len(self.params), plen)
             raise RpcException(ERR_INVALID_PARAMS,
                                "Function '%s' expects %d param(s). %d given." % vals)
-        i = 0
-        for p in self.params:
-            self.validate(p, params[i])
-            i += 1
+        
+        if params != None:
+            if plen == 1:
+                self.validate(self.params[0], params)
+            else:
+                i = 0
+                for p in self.params:
+                    self.validate(p, params[i])
+                    i += 1
 
     def validate_response(self, resp):
         ok, msg = self.contract.validate(self.returns, resp, allow_missing=False)
