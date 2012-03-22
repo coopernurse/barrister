@@ -460,13 +460,13 @@ class Function(object):
                                "Function '%s' expects %d param(s). %d given." % vals)
         
         if params != None:
-            if plen == 1:
-                self.validate(self.params[0], params)
-            else:
+            if isinstance(params, list):
                 i = 0
                 for p in self.params:
                     self.validate(p, params[i])
                     i += 1
+            else:
+                self.validate(self.params[0], params)
 
     def validate_response(self, resp):
         ok, msg = self.contract.validate(self.returns, resp, allow_missing=False)
