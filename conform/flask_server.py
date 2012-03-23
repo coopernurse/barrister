@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, make_response
 import barrister
 import logging
 import json
@@ -53,6 +53,10 @@ def exit():
 def rpc():
     #print request.data
     req = json.loads(request.data)
-    return jsonify(server.call(req))
+    resp_data = server.call(req)
+    #print "Resp: %s" % str(resp_data)
+    resp = make_response(json.dumps(resp_data))
+    resp.headers['Content-Type'] = 'application/json'
+    return resp
 
 app.run(debug=True, host="127.0.0.1", port=9233)

@@ -73,7 +73,7 @@ class ConformTest(unittest.TestCase):
         cmd = ["python", "flask_server.py", "conform.json"]
         self._test_server(1, "python-flask", cmd)
 
-    def test_java_server(self):
+    def _test_java_server(self):
         cmd = ["java", "-DidlJson=conform.json", "-jar", winstone_jar, 
                "--httpPort=9233", java_war ]
         self._test_server(3, "java", cmd)
@@ -85,7 +85,7 @@ class ConformTest(unittest.TestCase):
         inf = codecs.open(infile, "r", "utf-8")
         for line in inf:
             line = line.strip()
-            if line != "" and line.find("#") != 0:
+            if line != "" and line.find("#") != 0 and len(line.split("|")) == 5:
                 expected.append(line)
         inf.close()
         try:
