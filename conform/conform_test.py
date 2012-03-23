@@ -15,6 +15,11 @@ except:
 # Barrister conformance test runner
 
 home = os.environ["HOME"]
+
+
+#
+# Java config
+#
 m2_jackson = "%s/.m2/repository/org/codehaus/jackson" % home
 jackson_deps = [ "jackson-mapper-asl/1.9.4/jackson-mapper-asl-1.9.4.jar",
                  "jackson-core-asl/1.9.4/jackson-core-asl-1.9.4.jar" ]
@@ -24,7 +29,13 @@ if os.environ.has_key("BARRISTER_JAVA"):
 java_cp = "%s/target/classes:%s/conform/target/classes" % (barrister_java, barrister_java)
 for d in jackson_deps:
     java_cp += ":%s/%s" % (m2_jackson, d)
+winstone_jar = "%s/conform/lib/winstone-0.9.10.jar" % barrister_java
+java_war = "%s/conform/target/barrister-conform-test.war" % barrister_java
 
+
+#
+# Clients to run against each server
+#
 clients = [ 
     # format: name, command line
     [ "python-client", ["python", "client.py"] ],
@@ -58,10 +69,16 @@ class Runner(threading.Thread):
         
 class ConformTest(unittest.TestCase):
 
-    def test_python_flask(self):
-        self._test_server("python-flask", ["python", "flask_server.py"])
+    def test_python_server(self):
+        cmd = ["python", "flask_server.py", "conform.json"]
+        self._test_server(1, "python-flask", cmd)
 
-    def _test_server(self, s_name, s_cmd):
+    def test_java_server(self):
+        cmd = ["java", "-DidlJson=conform.json", "-jar", winstone_jar, 
+               "--httpPort=9233", java_war ]
+        self._test_server(3, "java", cmd)
+
+    def _test_server(self, sleep_time, s_name, s_cmd):
         errs = [ ]
         expected = [ ]
         infile = "conform.in"
@@ -72,10 +89,9 @@ class ConformTest(unittest.TestCase):
                 expected.append(line)
         inf.close()
         try:
-            s_cmd.append("conform.json")
             s_proc = Runner(s_name, s_cmd)
             s_proc.start()
-            time.sleep(1)
+            time.sleep(sleep_time)
             for c_name, c_cmd in clients:
                 print "Testing client '%s' vs server '%s'" % (c_name, s_name)
                 outfile = "%s-to-%s.out" % (c_name, s_name)
