@@ -73,7 +73,7 @@ class ConformTest(unittest.TestCase):
         cmd = ["python", "flask_server.py", "conform.json"]
         self._test_server(1, "python-flask", cmd)
 
-    def _test_java_server(self):
+    def test_java_server(self):
         cmd = ["java", "-DidlJson=conform.json", "-jar", winstone_jar, 
                "--httpPort=9233", java_war ]
         self._test_server(3, "java", cmd)
@@ -126,8 +126,8 @@ class ConformTest(unittest.TestCase):
                             break
                     out.close()
                     if len(fails) > 0:
-                        err = (c_name, len(fails), fails[0])
-                        self.fail("client %s outfile had %d mismatches. first=%s" % err)
+                        err = (outfile, len(fails), fails[0])
+                        self.fail("%s had %d mismatches. first=%s" % err)
                     elif len(expected) != i:
                         err = (i, len(expected))
                         self.fail("client produced %d lines - expected %d" % err)
