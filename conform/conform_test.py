@@ -95,8 +95,9 @@ class ConformTest(unittest.TestCase):
             for c_name, c_cmd in clients:
                 print "Testing client '%s' vs server '%s'" % (c_name, s_name)
                 outfile = "%s-to-%s.out" % (c_name, s_name)
-                c_cmd.extend([infile, outfile])
-                c_proc = Runner(c_name, c_cmd)
+                c_cmd_cpy = c_cmd[:]
+                c_cmd_cpy.extend([infile, outfile])
+                c_proc = Runner(c_name, c_cmd_cpy)
                 c_proc.start()
                 c_proc.join()
                 if c_proc.exit_code != 0:

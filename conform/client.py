@@ -29,6 +29,7 @@ def get_and_log_result(iface, func, params, c):
         resp = ""
 
     out.write("%s|%s|%s|%s|%s\n" % (iface, func, params, status, json.dumps(resp)))
+    out.flush()
 
 ########################################
 

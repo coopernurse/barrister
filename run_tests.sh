@@ -9,4 +9,4 @@ export PYTHONPATH=`pwd`
 find ./barrister/test -name "*_test.py" -print | xargs -n1 python
 
 # conformance test suite
-cd conform; python conform_test.py
+cd conform; rm -f *.out; python conform_test.py
