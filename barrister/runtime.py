@@ -128,10 +128,7 @@ class Server(object):
                     self.contract.validate_request(iface_name, func_name, params)
 
                 if params:
-                    if isinstance(params, list):
-                        result = func(*params)
-                    else:
-                        result = func(params)
+                    result = func(*params)
                 else:
                     result = func()
 
@@ -336,14 +333,13 @@ class Contract(object):
         else:
             raise RpcException(ERR_INVALID_PARAMS, "Unknown interface: '%s'", iface_name)
 
-    def validate(self, expected_type, val, allow_missing=True):
-        if expected_type.find("[]") == 0:
+    def validate(self, expected_type, is_array, val, allow_missing=True):
+        if is_array:
             if not isinstance(val, list):
                 return self._type_err(val, "list")
             else:
-                expected_type = expected_type[2:]
                 for v in val:
-                    ok, msg = self.validate(expected_type, v, allow_missing)
+                    ok, msg = self.validate(expected_type, False, v, allow_missing)
                     if not ok:
                         return ok, msg
         elif expected_type == "int":
@@ -424,7 +420,8 @@ class Struct(object):
             if allow_missing and v == None:
                 pass
             elif field:
-                ok, msg = self.contract.validate(field["type"], v, allow_missing)
+                ok, msg = self.contract.validate(field["type"], field["is_array"],
+                                                 v, allow_missing)
                 if not ok:
                     return False, "field '%s': %s" % (field["name"], msg)
             else:
@@ -449,10 +446,7 @@ class Function(object):
     def validate_params(self, params):
         plen = 0
         if params != None:
-            if isinstance(params, list):
-                plen = len(params)
-            else:
-                plen = 1
+            plen = len(params)
 
         if len(self.params) != plen:
             vals = (self.full_name, len(self.params), plen)
@@ -460,23 +454,20 @@ class Function(object):
                                "Function '%s' expects %d param(s). %d given." % vals)
         
         if params != None:
-            if isinstance(params, list):
-                i = 0
-                for p in self.params:
-                    self.validate(p, params[i])
-                    i += 1
-            else:
-                self.validate(self.params[0], params)
+            i = 0
+            for p in self.params:
+                self.validate(p, params[i])
+                i += 1
 
     def validate_response(self, resp):
-        ok, msg = self.contract.validate(self.returns, resp, allow_missing=False)
+        ok, msg = self.contract.validate(self.returns, False, resp, allow_missing=False)
         if not ok:
             vals = (self.full_name, str(resp), msg)
             msg = "Function '%s' invalid response: '%s'. %s" % vals
             raise RpcException(ERR_INVALID_RESP, msg)
 
     def validate(self, expected, param):
-        ok, msg = self.contract.validate(expected["type"], param)
+        ok, msg = self.contract.validate(expected["type"], expected["is_array"], param)
         if not ok:
             vals = (self.full_name, expected["name"], msg)
             msg = "Function '%s' invalid param '%s'. %s" % vals

@@ -109,7 +109,12 @@ class IdlScanner(Scanner):
         self.begin("field")
 
     def end_field(self, text):
+        is_array = False
+        if text.find("[]") == 0:
+            text = text[2:]
+            is_array = True
         self.field["type"] = text
+        self.field["is_array"] = is_array
         self.field["comment"] = self.get_comment()
         self.cur["fields"].append(self.field)
         self.field = None
@@ -124,7 +129,12 @@ class IdlScanner(Scanner):
         self.begin("param")
 
     def end_param(self, text):
+        is_array = False
+        if text.find("[]") == 0:
+            text = text[2:]
+            is_array = True
         self.param["type"] = text
+        self.param["is_array"] = is_array
         self.function["params"].append(self.param)
         self.param = None
         self.begin("end-param")

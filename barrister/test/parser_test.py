@@ -3,6 +3,9 @@
 import unittest
 from barrister.parser import parse, IdlParseException
 
+def field(name, type_, comment="", is_array=False):
+    return { "type": type_, "name": name, "comment": comment, "is_array": is_array }
+
 class ParserTest(unittest.TestCase):
 
     def test_parse_comment(self):
@@ -17,7 +20,7 @@ struct Person {
         expected = [ { "type" : "comment", "value" : "# section\nfoo" },
                      { "type" : "struct", "name" : "Person", "extends" : "",
                        "comment" : "this is a person", "fields" : [
-                    { "type" : "int", "name" : "age", "comment" : "" } ] } ]
+                    field("age", "int") ] } ]
         self.assertEquals(expected, parse(idl))
 
     def test_parse_struct(self):
@@ -28,8 +31,7 @@ age int
         expected = [ { "name" : "Person", 
                        "type" : "struct", 
                        "comment" : "", "extends" : "",
-                       "fields" : [ { "type" : "string", "name" : "email", "comment":"" },
-                                    { "type" : "int", "name" : "age", "comment":"" } ] } ]
+                       "fields" : [ field("email", "string"), field("age", "int") ] } ]
         self.assertEquals(expected, parse(idl))
 
     def test_parse_multiple(self):
@@ -38,11 +40,11 @@ struct Animal { furry bool }"""
         expected = [ { "name" : "Person", 
                        "type" : "struct", 
                        "comment" : "", "extends" : "",
-                       "fields" : [ { "type" : "string", "name" : "email", "comment":"" } ] },
+                       "fields" : [ field("email", "string") ] },
                      { "name" : "Animal", 
                        "type" : "struct", 
                        "comment" : "", "extends" : "",
-                       "fields" : [ { "type" : "bool", "name" : "furry", "comment":"" } ] } ]
+                       "fields" : [ field("furry", "bool") ] } ]
         self.assertEquals(expected, parse(idl))
 
     def test_parse_enum(self):
@@ -65,11 +67,11 @@ invalid }"""
                        "comment" : "",
                        "functions" : [
                     { "name" : "add", "comment" : "", "returns" : "int", "params" : [
-                            { "type" : "int", "name" : "a" },
-                            { "type" : "int", "name" : "b" } ] },
+                            { "type" : "int", "name" : "a", "is_array": False },
+                            { "type" : "int", "name" : "b", "is_array": False } ] },
                     { "name" : "login", "comment" : "",
                       "returns" : "LoginResponse", "params" : [
-                            { "type" : "LoginRequest", "name" : "req" } ] } ] } ]
+                            { "type" : "LoginRequest", "name" : "req", "is_array": False } ] } ] } ]
         self.assertEquals(expected, parse(idl, validate=False))
 
     def test_invalid_struct(self):
@@ -100,14 +102,33 @@ invalid }"""
                                       "value": "success" } ] } ]
         self.assertEquals(expected, parse(idl))        
 
+    def test_array_type(self):
+        idl = """struct Animal  {
+    friend_names []string }"""
+        expected = [ { "name" : "Animal", "type" : "struct", "comment" : "",
+                       "extends" : "",
+                 "fields" : [ field("friend_names", "string", "", True) ] } ]
+        self.assertEquals(expected, parse(idl))
+
+    def _test_array_return_type(self):
+        idl = """interface FooService {
+    []string repeat(s string)
+}"""
+        expected = [ { "name" : "FooService", "type" : "interface", "comment" : "",
+                       "extends" : "",
+                       "functions" : [
+                    { "name" : "add",  "comment" : "",
+                      "returns" : "[]string",
+                      "params" : [ { "type" : "string", "name" : "a", "is_array": False } ] } ] } ]
+        self.assertEquals(expected, parse(idl))
+
     def test_struct_comments(self):
         idl = """struct Animal   {
      // fur color
      color string }"""
         expected = [ { "name" : "Animal", "type" : "struct", "comment" : "",
                        "extends" : "",
-                       "fields" : [ { "comment" : "fur color",
-                                      "name" : "color", "type" : "string" } ] } ]
+                       "fields" : [ field("color", "string", "fur color") ] } ]
         self.assertEquals(expected, parse(idl))        
 
     def test_function_comments(self):
@@ -115,15 +136,15 @@ invalid }"""
      //Add two numbers
      // a is the 1st num
      //  b is the 2nd num
-     add(a int, b int) int
+     add(a int, b []int) int
 }"""
         expected = [ { "name" : "FooService", "type" : "interface", "comment" : "",
                        "functions" : [
                     { "name" : "add", "returns" : "int", 
                       "comment" : "Add two numbers\na is the 1st num\n b is the 2nd num",
-                      "params" : [
-                            { "type" : "int", "name" : "a" },
-                            { "type" : "int", "name" : "b" } ] } ] } ]
+                      "params" : [ 
+                            { "type" : "int", "name" : "a", "is_array": False },
+                            { "type" : "int", "name" : "b", "is_array": True } ] } ] } ]
         self.assertEquals(expected, parse(idl))        
 
     def test_interface_comments(self):
@@ -152,11 +173,10 @@ struct Cat extends Animal {
 }"""
         expected = [ { "name" : "Animal", "type" : "struct", 
                        "extends" : "", "comment" : "",
-                       "fields" : [ { "name" : "color", "type" : "string", "comment":"" },
-                                    { "name" : "gender", "type" : "string", "comment":"" } ] },
+                       "fields" : [ field("color", "string"), field("gender", "string") ] },
                      { "name" : "Cat", "type" : "struct", 
                        "extends" : "Animal", "comment" : "",
-                       "fields" : [ { "name" : "purr_volume", "type" : "int", "comment":"" } ] } ]
+                       "fields" : [ field("purr_volume", "int") ] } ]
         self.assertEquals(expected, parse(idl))
 
     def test_no_dupe_types(self):
