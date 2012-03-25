@@ -29,6 +29,7 @@ interface A {
   sqrt(a float) float
   repeat(req1 RepeatRequest) RepeatResponse
   say_hi() HiResponse
+  repeat_num(num int, count int) []int
 }
 
 interface B {

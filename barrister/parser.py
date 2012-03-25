@@ -140,7 +140,11 @@ class IdlScanner(Scanner):
         self.begin("end-param")
 
     def end_return(self, text):
-        self.function["returns"] = text
+        is_array = False
+        if text.find("[]") == 0:
+            text = text[2:]
+            is_array = True
+        self.function["returns"] = { "type": text, "is_array": is_array }
         self.cur["functions"].append(self.function)
         self.function = None
         self.begin("end-function")
@@ -309,7 +313,7 @@ class IdlScanner(Scanner):
                         types = [ ]
                         for p in f["params"]:
                             self.validate_type(p["type"], types, 1)
-                        self.validate_type(f["returns"], types, 1)
+                        self.validate_type(f["returns"]["type"], types, 1)
 
     def add_parent_fields(self, s, names, types):
         if s["extends"] in native_types:

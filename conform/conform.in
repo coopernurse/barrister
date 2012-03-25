@@ -38,6 +38,7 @@ A|say_hi|["blah"]|rpcerr|-32602
 A|repeat|[{"to_repeat":"yo", "count": 2}]|ok|{"status":"ok","count":2,"items":["yo","yo"]}
 A|add_all|[[2,3.0,6]]|ok|11.0
 A|add_all|[[2,3,"6"]]|rpcerr|-32602
+A|repeat_num|[2, 3]|ok|[2,2,2]
 
 start_batch
 A|sqrt|[36.0]|ok|6.0

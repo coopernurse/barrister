@@ -3,6 +3,9 @@
 import unittest
 from barrister.parser import parse, IdlParseException
 
+def ret_field(type_, is_array=False):
+    return { "type": type_, "is_array": is_array }
+
 def field(name, type_, comment="", is_array=False):
     return { "type": type_, "name": name, "comment": comment, "is_array": is_array }
 
@@ -66,11 +69,12 @@ invalid }"""
                        "type" : "interface",
                        "comment" : "",
                        "functions" : [
-                    { "name" : "add", "comment" : "", "returns" : "int", "params" : [
+                    { "name" : "add", "comment" : "", "returns" : ret_field("int"), 
+                      "params" : [
                             { "type" : "int", "name" : "a", "is_array": False },
                             { "type" : "int", "name" : "b", "is_array": False } ] },
                     { "name" : "login", "comment" : "",
-                      "returns" : "LoginResponse", "params" : [
+                      "returns" : ret_field("LoginResponse"), "params" : [
                             { "type" : "LoginRequest", "name" : "req", "is_array": False } ] } ] } ]
         self.assertEquals(expected, parse(idl, validate=False))
 
@@ -110,16 +114,15 @@ invalid }"""
                  "fields" : [ field("friend_names", "string", "", True) ] } ]
         self.assertEquals(expected, parse(idl))
 
-    def _test_array_return_type(self):
+    def test_array_return_type(self):
         idl = """interface FooService {
-    []string repeat(s string)
+    repeat(s string) []string
 }"""
         expected = [ { "name" : "FooService", "type" : "interface", "comment" : "",
-                       "extends" : "",
                        "functions" : [
-                    { "name" : "add",  "comment" : "",
-                      "returns" : "[]string",
-                      "params" : [ { "type" : "string", "name" : "a", "is_array": False } ] } ] } ]
+                    { "name" : "repeat",  "comment" : "",
+                      "returns" : ret_field("string", True),
+                      "params" : [ { "type" : "string", "name" : "s", "is_array": False } ] } ] } ]
         self.assertEquals(expected, parse(idl))
 
     def test_struct_comments(self):
@@ -140,7 +143,7 @@ invalid }"""
 }"""
         expected = [ { "name" : "FooService", "type" : "interface", "comment" : "",
                        "functions" : [
-                    { "name" : "add", "returns" : "int", 
+                    { "name" : "add", "returns" : ret_field("int"), 
                       "comment" : "Add two numbers\na is the 1st num\n b is the 2nd num",
                       "params" : [ 
                             { "type" : "int", "name" : "a", "is_array": False },
@@ -156,7 +159,7 @@ interface FooService {
         expected = [ { "name" : "FooService", "type" : "interface",
                        "comment" : "FooService is a..\nand does other stuff",
                        "functions" : [
-                    { "name" : "blah99", "returns" : "blah_Response",
+                    { "name" : "blah99", "returns" : ret_field("blah_Response"),
                       "comment" : "", "params" : [ ] }
                     ] } ]
         self.assertEquals(expected, parse(idl, validate=False))

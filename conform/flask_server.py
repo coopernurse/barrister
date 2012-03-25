@@ -27,6 +27,12 @@ class A(object):
             resp["items"].append(req["to_repeat"])
         return resp
 
+    def repeat_num(self, num, count):
+        l = [ ]
+        for i in range(count):
+            l.append(num)
+        return l
+
     def say_hi(self):
         return { "hi" : "hi" }
 

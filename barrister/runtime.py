@@ -460,7 +460,7 @@ class Function(object):
                 i += 1
 
     def validate_response(self, resp):
-        ok, msg = self.contract.validate(self.returns, False, resp, allow_missing=False)
+        ok, msg = self.contract.validate(self.returns["type"], self.returns["is_array"], resp, allow_missing=False)
         if not ok:
             vals = (self.full_name, str(resp), msg)
             msg = "Function '%s' invalid response: '%s'. %s" % vals
