@@ -5,6 +5,11 @@ enum Status {
     err
 }
 
+enum MathOp {
+    add
+    multiply
+}
+
 struct Response {
     status Status
 }
@@ -21,11 +26,12 @@ struct HiResponse {
 struct RepeatRequest {
     to_repeat string
     count int
+    force_uppercase bool
 }
 
 interface A {
   add(a int, b int) int
-  add_all(nums []float) float
+  calc(nums []float, operation MathOp) float
   sqrt(a float) float
   repeat(req1 RepeatRequest) RepeatResponse
   say_hi() HiResponse

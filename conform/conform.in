@@ -35,9 +35,10 @@ A|sqrt|[9]|ok|3.0
 A|sqrt|[25.0]|ok|5.0
 A|say_hi|[]|ok|{"hi":"hi"}
 A|say_hi|["blah"]|rpcerr|-32602
-A|repeat|[{"to_repeat":"yo", "count": 2}]|ok|{"status":"ok","count":2,"items":["yo","yo"]}
-A|add_all|[[2,3.0,6]]|ok|11.0
-A|add_all|[[2,3,"6"]]|rpcerr|-32602
+A|repeat|[{"to_repeat":"yo", "count": 2, "force_uppercase": false}]|ok|{"status":"ok","count":2,"items":["yo","yo"]}
+A|calc|[[2,3.0,6], "add"]|ok|11.0
+A|calc|[[4,4,7], "multiply"]|ok|112.0
+A|calc|[[2,3,"6"], "add"]|rpcerr|-32602
 A|repeat_num|[2, 3]|ok|[2,2,2]
 
 start_batch

@@ -12,10 +12,18 @@ class A(object):
     def add(self, a, b):
         return a+b
 
-    def add_all(self, nums):
+    def calc(self, nums, op):
         total = 0
+        if op == "multiply":
+            total = 1
+            
         for n in nums:
-            total += n
+            if op == "add":
+                total += n
+            elif op == "multiply":
+                total = total * n
+            else:
+                raise Exception("Unknown op: " + op)
         return total
 
     def sqrt(self, a):
@@ -23,8 +31,11 @@ class A(object):
 
     def repeat(self, req):
         resp = { "status" : "ok", "count" : req["count"], "items" : [ ] }
+        s = req["to_repeat"]
+        if req["force_uppercase"]:
+            s = s.upper()
         for i in range(req["count"]):
-            resp["items"].append(req["to_repeat"])
+            resp["items"].append(s)
         return resp
 
     def repeat_num(self, num, count):
