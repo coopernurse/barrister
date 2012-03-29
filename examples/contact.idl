@@ -1,0 +1,81 @@
+//
+// Error codes
+// -----------
+//
+// * `100` - Invalid Input
+// * `101` - Permission Denied
+// * `102` - Limit Exceeded
+
+// Services
+// --------
+
+//
+// The ContactService keeps track of addresses for users.
+// All data is partitioned by userId, which is a string UUID
+interface ContactService {
+  // Adds or updates the contact
+  // If the contactId field is not set, the server will create a UUID for it
+  // If the userId has more than 10 contacts, a "Limit Exceeded" error is returned
+  //
+  // Returns the UUID of the contact
+  put(contact Contact) string
+
+  // Returns the contact with the given contactId
+  //
+  // If no contact exists with this id, a null result is returned
+  //
+  // If the contact exists but is not associated with the provided
+  // userId, then a "Permission Denied" error is returned
+  get(contactId string, userId string) Contact
+
+  // Returns all contacts for the given user
+  // If the user has no contacts, an empty list is returned
+  getAll(userId string) []Contact
+
+  // Deletes the contact with the given contactId
+  //
+  // If the contact exists but is not associated with the provided
+  // userId, then a "Permission Denied" error is returned
+  //
+  // Returns false if no contact is found with this contactId
+  // Returns true if the contact is found and is associated with the 
+  // provided userId
+  delete(contactId string, userId string) bool
+}
+
+// Data Structures
+// ---------------
+
+// Types of phone numbers
+enum PhoneType {
+   home
+   work
+   mobile
+}
+
+// A single contact
+struct Contact {
+  // Key of the contact. Must be globally unique.
+  contactId string
+
+  // User ID that owns the contact
+  userId    string
+
+  // User's name
+  firstName string
+  lastName  string
+
+  // Email address
+  email     string
+
+  // Contacts can have 0..5 phones
+  phones    []Phone
+}
+
+// A single phone number
+// All fields are required
+struct Phone {
+  type        PhoneType
+  countryCode int
+  number      int
+}
