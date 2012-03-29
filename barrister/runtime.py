@@ -6,8 +6,8 @@
 """
 import urllib2
 import uuid
-import sys
 import itertools
+import logging
 try:
     import json
 except: 
@@ -23,6 +23,8 @@ ERR_INTERNAL = -32603
 # Our extensions
 ERR_UNKNOWN = -32000
 ERR_INVALID_RESP = -32001
+
+LOG = logging.getLogger('barrister')
 
 def contract_from_file(fname):
     """
@@ -191,7 +193,8 @@ class Server(object):
         except RpcException as e:
             return self._err(reqid, e.code, e.msg, e.data)
         except:
-            return self._err(reqid, ERR_UNKNOWN, str(sys.exc_info()))
+            LOG.exception("Error processing request: %s" % str(req))
+            return self._err(reqid, ERR_UNKNOWN, "Server error. Check logs for details.")
         
 
     def _call(self, req):
@@ -716,7 +719,9 @@ class Contract(object):
           allow_missing
             If True, allow undefined struct members or null values
         """
-        if is_array:
+        if allow_missing and val == None:
+            return True, None
+        elif is_array:
             if not isinstance(val, list):
                 return self._type_err(val, "list")
             else:
@@ -870,7 +875,7 @@ class Struct(object):
 
         :Parameters:
           val
-            Value to validate.  Must be a dict.
+            Value to validate.  Must be a dict
           allow_missing
             If False then val MUST contain all fields defined on the struct and its ancestors
         """
@@ -946,7 +951,7 @@ class Function(object):
         """
         ok, msg = self.contract.validate(self.returns["type"], 
                                          self.returns["is_array"], resp, 
-                                         allow_missing=False)
+                                         allow_missing=True)
         if not ok:
             vals = (self.full_name, str(resp), msg)
             msg = "Function '%s' invalid response: '%s'. %s" % vals
