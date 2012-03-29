@@ -191,13 +191,13 @@ The example from the client is here:
 A few items of note:
 
 * `client.start_batch()` creates the `barrister.Batch` object
-* You can make calls against the `batch` object as if it were the client.  
-  It has the same proxy interface classes hung off it.
-* **But** none of the calls you make will return anything, since we haven't sent the request yet
+* Make calls against the `batch` object as if it were the client.  
+  It has the same proxy interface classes hung off it, but note that none of the calls you make 
+  will return anything, since we haven't sent the request to the server yet.
 * `batch.send()` makes the call to the server and returns a `barrister.BatchResult`
-* You have to call `result.get(offset)` to fetch each result
-  * If the individual result contains an error, a `RpcException` will be thrown on that `get()` call
-  * That allows you to trap each error individually if desired
+* Call `result.get(offset)` to fetch each result
+  * If the individual result contains an error, a `RpcException` will be thrown on that `get()` call,
+    which allows you to trap each error individually if desired
 * The order of elements in the `result` object will match the order of your requests
 
 ## More information
