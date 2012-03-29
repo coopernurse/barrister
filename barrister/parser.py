@@ -1,14 +1,22 @@
+"""
+    Parser lib for converting IDL prose into a parsed representation suitable for saving as JSON
+
+    http://barrister.bitmechanic.com/
+
+    :copyright: 2012 by James Cooper.
+    :license: MIT, see LICENSE for more details.
+"""
 import cStringIO
 from plex import Scanner, Lexicon, Str, State, IGNORE, Begin, Any, AnyChar, Range, Rep
 
 native_types = [ "int", "float", "string", "bool" ]
-letter = Range("AZaz")
-digit = Range("09")
-under = Str("_")
-ident = letter + Rep(letter | digit | under)
-arr_ident = Str("[]") + ident
-space = Any(" \t\n\r")
-comment = Str("// ") | Str("//")
+letter       = Range("AZaz")
+digit        = Range("09")
+under        = Str("_")
+ident        = letter + Rep(letter | digit | under)
+arr_ident    = Str("[]") + ident
+space        = Any(" \t\n\r")
+comment      = Str("// ") | Str("//")
 
 def parse(idl_text, name=None, validate=True):
     if isinstance(idl_text, (str, unicode)):

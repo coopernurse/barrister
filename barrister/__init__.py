@@ -6,7 +6,9 @@
     A RPC toolkit for building lightweight reliable services.  Ideal for
     both static and dynamic languages.
 
-    :copyright: (c) 2012 by James Cooper.
+    http://barrister.bitmechanic.com/
+
+    :copyright: 2012 by James Cooper.
     :license: MIT, see LICENSE for more details.
 """
 __version__ = '0.1.0'

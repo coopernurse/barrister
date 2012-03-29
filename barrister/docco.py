@@ -1,5 +1,14 @@
 #!/usr/bin/env python
 
+"""
+    Module for generating Docco style HTML output based on a Barrister IDL file.
+
+    See: http://jashkenas.github.com/docco/
+
+    :copyright: 2012 by James Cooper.  Embedded CSS is copyright Jeremy Ashkenas.
+    :license: MIT, see LICENSE for more details.
+"""
+
 import sys
 import markdown
 import optparse
@@ -8,6 +17,10 @@ try:
 except:
     import simplejson as json
 
+#
+# Thank you Jeremy Ashkenas
+# http://jashkenas.github.com/docco/
+#
 DOCCO_CSS="""
 /*--------------------- Layout and Typography ----------------------------*/
 body {
@@ -198,12 +211,28 @@ body .il { color: #666666 }                     /* Literal.Number.Integer.Long *
 """
 
 def format_type(t):
+    """
+    Returns the type as a string.  If the type is an array, then it is prepended with []
+    
+    :Parameters:
+      t
+        The type as a dict. Keys: 'type', 'is_array'
+    """
     if t.has_key('is_array') and t['is_array']:
         return "[]%s" % t['type']
     else:
         return t['type']
 
 def docco_html(title, idl_parsed):
+    """
+    Translates a parsed Barrister IDL into HTML.  Returns a string containing the HTML.
+
+    :Parameters:
+      title
+        Title of the document. Will be includined in <title> and <h1> tags
+      idl_parsed
+        Parsed representation of IDL to convert to HTML
+    """
     sections = to_sections(idl_parsed)
     s = """<!DOCTYPE html>
 <html>
@@ -254,6 +283,13 @@ def docco_html(title, idl_parsed):
     return s
     
 def parse_enum(enum):
+    """
+    Returns a docco section for the given enum.
+
+    :Parameters:
+      enum
+        Parsed IDL enum dict. Keys: 'comment', 'name', 'values'
+    """
     docs = enum['comment']
     code = '<span class="k">enum</span> <span class="gs">%s</span> {\n' % enum['name']
     for v in enum["values"]:
@@ -266,6 +302,13 @@ def parse_enum(enum):
     return to_section(docs, code)
 
 def parse_struct(s):
+    """
+    Returns a docco section for the given struct.
+
+    :Parameters:
+      s
+        Parsed IDL struct dict. Keys: 'comment', 'name', 'extends', 'fields'
+    """
     docs = s['comment']
     code = '<span class="k">struct</span> <span class="gs">%s</span>' % s['name']
     if s['extends']:
@@ -291,6 +334,13 @@ def parse_struct(s):
     return to_section(docs, code)
 
 def parse_interface(iface):
+    """
+    Returns a docco section for the given interface.
+
+    :Parameters:
+      iface
+        Parsed IDL interface dict. Keys: 'comment', 'name', 'returns', 'params'
+    """
     sections = [ ]
     docs = iface['comment']
     code = '<span class="k">interface</span> <span class="gs">%s</span> {\n' % iface['name']
@@ -315,15 +365,40 @@ def parse_interface(iface):
     return sections
 
 def wrap_code(code):
+    """
+    Wraps HTML tags around the given source code block
+
+    :Parameters:
+      code
+        Source code to wrap
+    """
     if code:
         return """<div class="highlight"><pre>%s</pre></div>""" % code
     else:
         return ""
 
 def to_section(docs, code):
+    """
+    Returns a dict with keys: 'docs', 'code'.  docs are converted to markdown. code is converted
+    to HTML using wrap_code.
+
+    :Parameters:
+      docs
+        Documentation for the section in Markdown format
+      code
+        Source code for the section in plain text
+    """
     return { "docs": markdown.markdown(docs), "code": wrap_code(code) }
 
 def to_sections(idl_parsed):
+    """
+    Iterates through elements in idl_parsed list and returns a list of section dicts.
+    Currently elements of type "comment", "enum", "struct", and "interface" are processed.
+
+    :Parameters:
+      idl_parsed
+        Barrister parsed IDL
+    """
     sections = []
     for entity in idl_parsed:
         if entity["type"] == "comment":

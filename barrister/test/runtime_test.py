@@ -1,5 +1,16 @@
 #!/usr/bin/env python
 
+"""
+    barrister
+    ~~~~~~~~~
+
+    A RPC toolkit for building lightweight reliable services.  Ideal for
+    both static and dynamic languages.
+
+    :copyright: (c) 2012 by James Cooper.
+    :license: MIT, see LICENSE for more details.
+"""
+
 import uuid
 import time
 import unittest
