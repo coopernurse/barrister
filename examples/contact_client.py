@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 import barrister
-import uuid
 import random
+import uuid
 import sys
 
 ########################
@@ -23,7 +23,7 @@ def new_phone(ptype, country, number):
 def new_contact(userId, first, last, email, phones=None):
     if not phones:
         phones = [ ]
-    return { "contactId" : uuid.uuid4().hex, 
+    return { "contactId" : uuid.uuid4().hex,
              "userId"    : userId,
              "firstName" : first,
              "lastName"  : last,
@@ -54,6 +54,7 @@ for i in range(10):
     bobContactIds.append(contactId)
 
 # Try to add one more.  This should fail
+print "Does the server keep us from adding an 11th contact for Bob?"
 try:
     email = "deny_me@example.com"
     contact = new_contact(bobId, rand_val(first_names), rand_val(last_names), email)
@@ -63,6 +64,7 @@ try:
 except barrister.RpcException as e:
     # prove that we got the correct error code
     assert(e.code == 102)
+    print "Yep! Sorry Bob, you have too many contacts!"
 
 # Add 5 contacts for Mary in a batch
 maryContactIds = []
@@ -100,3 +102,16 @@ try:
 except barrister.RpcException as e:
     assert(e.code == 101)
 
+# Try sending the wrong data
+print "Trying a malformed contact"
+try:
+    bad = { "first" : "Sam", "last" : "Jones", "email" : "foo@bar.com" }
+    client.ContactService.put(bad)
+    print "What? The server let us send it a bad contact.. Bug report!"
+except barrister.RpcException as e:
+    # this crazy number comes from the JSON-RPC 2.0 spec, which 
+    # we are basing our message formats off of:
+    # http://jsonrpc.org/specification
+    # -32602 == invalid method parameters
+    assert(e.code == -32602)
+    print "Nope, wouldn't allow it. e.msg: %s" % e.msg

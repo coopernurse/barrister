@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
-import json
+try:
+    import json
+except:
+    import simplejson as json
 import uuid
 import logging
 import barrister
@@ -8,6 +11,7 @@ from bottle import post, request, response, run
 
 #############################
 
+# Define some constants for our error codes
 ERR_INVALID = 100
 ERR_DENIED  = 101
 ERR_LIMIT   = 102
@@ -22,6 +26,8 @@ class ContactService(object):
         if not self.contacts.has_key(contactId):
             userId = contact["userId"]
             if len(self.getAll(userId)) >= 10:
+                # This RpcException will be automatically marshaled and re-thrown
+                # on the client side
                 msg = "User %s is at the 10 contact limit" % userId
                 raise barrister.RpcException(ERR_LIMIT, msg)
         self.contacts[contactId] = contact
@@ -57,18 +63,36 @@ class ContactService(object):
             d[key] = uuid.uuid4().hex
         return d[key]
 
-logging.basicConfig()
-contract = barrister.contract_from_file("contact.json")
-server   = barrister.Server(contract)
-server.add_handler("ContactService", ContactService())
-
 #############################
 
+#
+# Our single URL handler for this interface
+#
 @post('/contact')
 def contact():
+    # Read the raw POST data and deserialize the JSON
     req = json.loads(request.body.read())
-    resp_data = server.call(req)
-    response.content_type = 'application/json'
-    return json.dumps(resp_data)
 
-run(host='localhost', port=7186)
+    # Hand the request to the Barrister Server object
+    # It will call the correct function on the ContactService
+    resp = server.call(req)
+
+    # Set the MIME type, and serialize the response to JSON
+    response.content_type = 'application/json'
+    return json.dumps(resp)
+
+if __name__ == '__main__':
+    # initialize the Python logger. totally optional.
+    logging.basicConfig()
+
+    # load the IDL JSON and create a barrister.Contract object
+    contract = barrister.contract_from_file("contact.json")
+
+    # create a Server that will dispatch requests for this Contract
+    server = barrister.Server(contract)
+
+    # register our class with the "ContactService" interface
+    server.add_handler("ContactService", ContactService())
+
+    # Starts the Bottle app
+    run(host='localhost', port=7186)
