@@ -218,10 +218,14 @@ def format_type(t):
       t
         The type as a dict. Keys: 'type', 'is_array'
     """
+    s = ""
     if t.has_key('is_array') and t['is_array']:
-        return "[]%s" % t['type']
+        s = "[]%s" % t['type']
     else:
-        return t['type']
+        s = t['type']
+    if t.has_key('optional') and t['optional'] == True:
+        s += " optional"
+    return s
 
 def docco_html(title, idl_parsed):
     """
