@@ -55,7 +55,7 @@ If you don't mind downloading the repo, try running the example.  On Mac OS or L
 
     git clone git://github.com/coopernurse/barrister.git
     cd barrister/examples
-    python contact_server.py > /dev/null &
+    python contact_server.py &
     python contact_client.py
     fg      (to foreground the server)
     ctrl-c  (to quit the server)
