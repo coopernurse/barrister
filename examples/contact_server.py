@@ -1,9 +1,5 @@
 #!/usr/bin/env python
 
-try:
-    import json
-except:
-    import simplejson as json
 import uuid
 import logging
 import barrister
@@ -70,16 +66,16 @@ class ContactService(object):
 #
 @post('/contact')
 def contact():
-    # Read the raw POST data and deserialize the JSON
-    req = json.loads(request.body.read())
+    # Read the raw POST data 
+    data = request.body.read()
 
     # Hand the request to the Barrister Server object
     # It will call the correct function on the ContactService
-    resp = server.call(req)
+    resp_json = server.call_json(data)
 
-    # Set the MIME type, and serialize the response to JSON
+    # Set the MIME type, and return the response
     response.content_type = 'application/json'
-    return json.dumps(resp)
+    return resp_json
 
 if __name__ == '__main__':
     # initialize the Python logger. totally optional.
