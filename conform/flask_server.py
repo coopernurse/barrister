@@ -3,7 +3,6 @@
 from flask import Flask, request, make_response
 import barrister
 import logging
-import json
 import math
 import sys
 
@@ -47,10 +46,16 @@ class A(object):
     def say_hi(self):
         return { "hi" : "hi" }
 
+    def putPerson(self, person):
+        return person["personId"]
+
 class B(object):
 
     def echo(self, s):
-        return s
+        if s == "return-null":
+            return None
+        else:
+            return s
 
 logging.basicConfig(level=logging.WARN)
 app = Flask(__name__)
@@ -68,11 +73,8 @@ def exit():
 
 @app.route("/", methods=["POST"])
 def rpc():
-    #print request.data
-    req = json.loads(request.data)
-    resp_data = server.call(req)
-    #print "Resp: %s" % str(resp_data)
-    resp = make_response(json.dumps(resp_data))
+    resp_json = server.call_json(request.data)
+    resp = make_response(resp_json)
     resp.headers['Content-Type'] = 'application/json'
     return resp
 

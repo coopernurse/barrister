@@ -140,6 +140,22 @@ class Server(object):
         else:
             raise RpcException(ERR_INVALID_REQ, "Unknown interface: '%s'", iface_name)
 
+    def call_json(self, req_json):
+        """
+        Deserializes req_json as JSON, invokes self.call(), and serializes result to JSON.
+        Returns JSON encoded string.
+
+        :Parameters:
+          req_json
+            JSON-RPC request serialized as JSON string
+        """
+        try:
+            req = json.loads(req_json)
+        except:
+            msg = "Unable to parse JSON: %s" % req_json
+            return json.dumps(self._err(None, -32700, msg))
+        return json.dumps(self.call(req))
+
     def call(self, req):
         """
         Executes a Barrister request and returns a response.  If the request is a list, then the
@@ -717,8 +733,11 @@ class Contract(object):
           val
             Value to validate against the expected type
         """
-        if expected_type.optional and val == None:
-            return True, None
+        if val == None:
+            if expected_type.optional:
+                return True, None
+            else:
+                return False, "Value cannot be null"
         elif is_array:
             if not isinstance(val, list):
                 return self._type_err(val, "list")
@@ -955,12 +974,11 @@ class Function(object):
         
         :Parameters:
           expected
-            Dict of expected type with keys: 'type', 'is_array', 'name'
+            Type instance
           param
             Parameter value to validate
         """
-        ok, msg = self.contract.validate(expected,
-                                         expected.is_array, param)
+        ok, msg = self.contract.validate(expected, expected.is_array, param)
         if not ok:
             vals = (self.full_name, expected.name, msg)
             msg = "Function '%s' invalid param '%s'. %s" % vals

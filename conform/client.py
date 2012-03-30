@@ -23,6 +23,7 @@ def get_and_log_result(iface, func, params, c):
     except barrister.RpcException as e:
         status = "rpcerr"
         resp = e.code
+        print "RPCERR: %s" % e.msg
     except:
         print "ERR: %s" % str(sys.exc_info())
         status = "err"
@@ -63,7 +64,10 @@ for line in lines:
 
     svc = getattr(cur_client, iface)
     fn  = getattr(svc, func)
-    c   = lambda: fn(*p)
+    if isinstance(p, list):
+        c = lambda: fn(*p)
+    else:
+        c = lambda: fn(p)
 
     if batch:
         c()

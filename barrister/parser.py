@@ -7,7 +7,7 @@
     :license: MIT, see LICENSE for more details.
 """
 import cStringIO
-from plex import Scanner, Lexicon, Str, State, IGNORE, Begin, Any, AnyChar, Range, Rep
+from plex import Scanner, Lexicon, Str, State, IGNORE, Begin, Any, AnyBut, AnyChar, Range, Rep
 
 native_types = [ "int", "float", "string", "bool" ]
 letter       = Range("AZaz")
@@ -17,6 +17,7 @@ ident        = letter + Rep(letter | digit | under)
 arr_ident    = Str("[]") + ident
 space        = Any(" \t\n\r")
 comment      = Str("// ") | Str("//")
+type_opts    = Str("[") + Rep(AnyBut("{}]\n")) + Str("]")
 
 def parse(idl_text, name=None, validate=True):
     if isinstance(idl_text, (str, unicode)):
@@ -125,24 +126,11 @@ class IdlScanner(Scanner):
         self.field["is_array"] = is_array
         self.field["comment"] = self.get_comment()
         self.field["optional"] = False
-        self.field_options = [ ]
-        self.begin("field-options")
-
-    def end_field_options(self, text):
-        text = "".join(self.field_options)
-        if text != "":
-            if text == "optional":
-                self.field["optional"] = True
-            else:
-                raise Exception("Invalid field option: %s" % text)
+        self.type = self.field
         self.cur["fields"].append(self.field)
         self.field = None
-        self.field_options = None
-        self.begin("fields")
-
-    def end_field_options_and_block(self, text):
-        self.end_field_options(text)
-        self.end_block("")
+        self.next_state = "fields"
+        self.begin("type-opts")
 
     def begin_function(self, text):
         self.function = { "name" : text, "comment" : self.get_comment(), "params" : [ ] }
@@ -169,23 +157,27 @@ class IdlScanner(Scanner):
             text = text[2:]
             is_array = True
         self.function["returns"] = { "type": text, "is_array": is_array, "optional": False }
-        self.field_options = []
-        self.begin("function-return-options")
-
-    def end_return_options(self, text):
-        text = "".join(self.field_options)
-        if text != "":
-            if text == "optional":
-                self.function["returns"]["optional"] = True
-            else:
-                raise Exception("Invalid return option: %s" % text)
+        self.type = self.function["returns"]
+        self.next_state = "functions"
         self.cur["functions"].append(self.function)
         self.function = None
-        self.field_options = None
-        self.begin("functions")
+        self.begin("type-opts")
 
-    def end_return_options_and_block(self, text):
-        self.end_return_options(text)
+    def end_type_opts(self, text):
+        text = text.strip()
+        if text.startswith("[") and text.endswith("]"):
+            text = text[1:-1]
+        if text != "":
+            if text == "optional":
+                self.type["optional"] = True
+            else:
+                raise Exception("Invalid type option: %s" % text)
+        self.type = None
+        self.begin(self.next_state)
+        self.next_state = None
+
+    def end_type_opts_and_block(self, text):
+        self.end_type_opts(text)
         self.end_block(text)
 
     def end_value(self, text):
@@ -270,12 +262,6 @@ class IdlScanner(Scanner):
                     (space,    IGNORE),
                     (Str('{'), 'invalid'),
                     (Str('}'), 'invalid') ]),
-            State('field-options', [
-                    (Str("\n"), end_field_options),
-                    (Str('}'),  end_field_options_and_block),
-                    (space,     IGNORE),
-                    (Str('{'),  'invalid'),
-                    (AnyChar, append_field_options)]),
             State('functions', [
                     (ident,    begin_function),
                     (space,    IGNORE),
@@ -302,12 +288,12 @@ class IdlScanner(Scanner):
                     (space,    IGNORE),
                     (ident,    end_return),
                     (arr_ident, end_return) ]),
-            State('function-return-options', [
-                    (Str("\n"), end_return_options),
-                    (Str('}'),  end_return_options_and_block),
-                    (space,     IGNORE),
-                    (Str('{'),  'invalid'),
-                    (AnyChar, append_field_options) ]),
+            State('type-opts', [
+                    (type_opts, end_type_opts),
+                    (Str("\n"), end_type_opts),
+                    (Str('}'),  end_block),
+                    (space,    IGNORE),
+                    (Str('{'),  'invalid') ]),
             State('end-function', [
                     (Str("\n"), Begin('functions')),
                     (space, IGNORE) ]),

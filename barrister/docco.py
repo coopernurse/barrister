@@ -224,7 +224,7 @@ def format_type(t):
     else:
         s = t['type']
     if t.has_key('optional') and t['optional'] == True:
-        s += " optional"
+        s += " [optional]"
     return s
 
 def docco_html(title, idl_parsed):

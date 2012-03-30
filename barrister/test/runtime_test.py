@@ -24,7 +24,7 @@ struct User {
     email string
     emailVerified bool
     dateCreated int
-    age float optional
+    age float [optional]
 }
 
 enum Status {

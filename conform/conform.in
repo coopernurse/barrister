@@ -15,33 +15,54 @@
 # servers should validate requests and responses
 # servers should bind to localhost:9233
 
-# valid
+### valid invocations.  make sure output is valid
+
 B|echo|["hello"]|ok|"hello"
+
+# special case. server should retrurn JSON null object
+# verifies that optional return types work
+B|echo|["return-null"]|ok|null
+
+# note: we require non-ascii characters to be unicode encoded
+# this ensures common behavior across all json parsers and minimizes
+# character encoding issues on the wire
 B|echo|["hello w\u00f6rld"]|ok|"hello w\u00f6rld"
 
-# invalid types
-B|echo|[2]|rpcerr|-32602
-B|echo|[{"hello":"1"}]|rpcerr|-32602
-
-# non-existance methods - should blow up on client
-# need to reconsider these two, as the Java version
-# emits rpcerr, which is probably also fine.
-#C|echo|["hello"]|err|""
-#A|echo2|["hello"]|err|""
-
 A|add|[3,5]|ok|8
-A|add|[3.3,5]|rpcerr|-32602
 A|sqrt|[9]|ok|3.0
 A|sqrt|[25.0]|ok|5.0
-A|say_hi|[]|ok|{"hi":"hi"}
-A|say_hi|["blah"]|rpcerr|-32602
-A|repeat|[{"to_repeat":"yo", "count": 2, "force_uppercase": false}]|ok|{"status":"ok","count":2,"items":["yo","yo"]}
 A|calc|[[2,3.0,6], "add"]|ok|11.0
 A|calc|[[4,4,7], "multiply"]|ok|112.0
-A|calc|[[2,3,"6"], "add"]|rpcerr|-32602
+A|say_hi|[]|ok|{"hi":"hi"}
+A|repeat|[{"to_repeat":"yo", "count": 2, "force_uppercase": false}]|ok|{"status":"ok","count":2,"items":["yo","yo"]}
+A|repeat|[{"to_repeat":"hi", "count": 1, "force_uppercase": true}]|ok|{"status":"ok","count":1,"items":["HI"]}
 A|repeat_num|[2, 3]|ok|[2,2,2]
 
+# null email is allowed
+A|putPerson|[{"personId":"1","firstName":"bob","lastName":"doe"}]|ok|"1"
+# string email is ok
+A|putPerson|[{"personId":"2","firstName":"bob","lastName":"doe","email":"foo@bar.com"}]|ok|"2"
+# wrong email type is not
+A|putPerson|[{"personId":"1","firstName":"bob","lastName":"doe","email":1}]|rpcerr|-32602
+
+# batch test - clients should send batch and output the results
 start_batch
 A|sqrt|[36.0]|ok|6.0
 A|say_hi|[]|ok|{"hi":"hi"}
 end_batch
+
+###  invalid invocations. make sure we get the right error codes
+
+# invalid types
+B|echo|[2]|rpcerr|-32602
+B|echo|[{"hello":"1"}]|rpcerr|-32602
+A|say_hi|["blah"]|rpcerr|-32602
+A|add|[3.3,5]|rpcerr|-32602
+A|calc|[[2,3,"6"], "add"]|rpcerr|-32602
+
+# wrong param count
+B|echo|null|rpcerr|-32602
+
+# invalid - null parameters
+B|echo|[null]|rpcerr|-32602
+A|repeat_num|[2, null]|rpcerr|-32602

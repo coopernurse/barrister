@@ -1,4 +1,8 @@
 // Barrister conformance IDL
+//
+// The bits in here have silly names and the operations
+// are not intended to be useful.  The intent is to
+// exercise as much of the IDL grammar as possible
 
 enum Status {
     ok
@@ -14,9 +18,10 @@ struct Response {
     status Status
 }
 
+// testing struct inheritance
 struct RepeatResponse extends Response {
-    count int
-    items []string
+    count  int
+    items  []string
 }
 
 struct HiResponse {
@@ -24,20 +29,55 @@ struct HiResponse {
 }
 
 struct RepeatRequest {
-    to_repeat string
-    count int
-    force_uppercase bool
+    to_repeat        string
+    count            int
+    force_uppercase  bool
+}
+
+struct Person {
+    personId  string
+    firstName string
+    lastName  string
+    email     string   [optional]
 }
 
 interface A {
+  // returns a+b
   add(a int, b int) int
+
+  // performs the given operation against 
+  // all the values in nums and returns the result
   calc(nums []float, operation MathOp) float
+
+  // returns the square root of a
   sqrt(a float) float
+
+  // Echos the req1.to_repeat string as a list,
+  // optionally forcing to_repeat to upper case
+  //
+  // RepeatResponse.items should be a list of strings
+  // whose length is equal to req1.count
   repeat(req1 RepeatRequest) RepeatResponse
+
+  //
+  // returns a result with:
+  //   hi="hi" and status="ok"
   say_hi() HiResponse
+
+  // returns num as an array repeated 'count' number of times
   repeat_num(num int, count int) []int
+
+  // simply returns p.personId
+  //
+  // we use this to test the '[optional]' enforcement, 
+  // as we invoke it with a null email
+  putPerson(p Person) string
 }
 
+// a second interface to prove that the server dispatcher
+// understands how to distinguish between interfaces in a contract
 interface B {
-  echo(s string) string
+  // simply returns s 
+  // if s == "return-null" then you should return a null 
+  echo(s string) string [optional]
 }

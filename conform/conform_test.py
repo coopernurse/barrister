@@ -43,6 +43,7 @@ clients = [
 ]
 
 verbose = os.environ.has_key('CONFORM_VERBOSE')
+
 def log(msg):
     if verbose:
         print msg.strip()
@@ -78,6 +79,18 @@ class ConformTest(unittest.TestCase):
                "--httpPort=9233", java_war ]
         self._test_server(3, "java", cmd)
 
+    def _test_invalid_json(self):
+        headers = { "Content-Type" : "application/json" }
+        invalid = [ "{", "[", "--" ]
+        for s in invalid:
+            data = """{ "jsonrpc": "2.0", "method": "foo", "params": %s }""" % s
+            req = urllib2.Request("http://localhost:9233", data, headers)
+            f = urllib2.urlopen(req)
+            json_resp = f.read()
+            f.close()
+            resp = json.loads(json_resp)
+            self.assertEquals(resp["error"]["code"], -32700)
+
     def _test_server(self, sleep_time, s_name, s_cmd):
         errs = [ ]
         expected = [ ]
@@ -92,6 +105,9 @@ class ConformTest(unittest.TestCase):
             s_proc = Runner(s_name, s_cmd)
             s_proc.start()
             time.sleep(sleep_time)
+
+            self._test_invalid_json()
+
             for c_name, c_cmd in clients:
                 print "Testing client '%s' vs server '%s'" % (c_name, s_name)
                 outfile = "%s-to-%s.out" % (c_name, s_name)
@@ -141,4 +157,6 @@ class ConformTest(unittest.TestCase):
                 self.fail("\n".join(errs))
             
 if __name__ == "__main__":
+    if not verbose:
+        print "Verbose output disabled. To enable: export CONFORM_VERBOSE=1"
     unittest.main()

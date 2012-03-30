@@ -377,7 +377,7 @@ interface FooService {
     def test_optional_struct_field(self):
         idl = """struct Person {
    firstName string
-   email string optional
+   email string  [optional]
 }"""
         expected = [ { "name" : "Person", "type" : "struct", 
                        "extends" : "", "comment" : "",
@@ -387,7 +387,7 @@ interface FooService {
 
     def test_optional_return_type(self):
         idl = """interface FooService {
-   sayHi() string optional
+   sayHi() string [optional]
 }"""
         expected = [ { "name": "FooService", "type": "interface", "comment": "",
                        "functions" : 
