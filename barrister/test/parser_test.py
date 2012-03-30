@@ -14,11 +14,11 @@
 import unittest
 from barrister.parser import parse, IdlParseException
 
-def ret_field(type_, is_array=False):
-    return { "type": type_, "is_array": is_array }
+def ret_field(type_, is_array=False, optional=False):
+    return { "type": type_, "is_array": is_array, "optional": optional }
 
-def field(name, type_, comment="", is_array=False):
-    return { "type": type_, "name": name, "comment": comment, "is_array": is_array }
+def field(name, type_, comment="", is_array=False, optional=False):
+    return { "type": type_, "name": name, "comment": comment, "is_array": is_array, "optional":  optional}
 
 class ParserTest(unittest.TestCase):
 
@@ -373,6 +373,27 @@ interface FooService {
             expected = [ { "line": 0, "message" : "interface BlargService cannot be a field type" },
                          { "line": 0, "message" : "interface BlargService cannot be a field type" } ]
             self.assertEquals(expected, e.errors)        
+
+    def test_optional_struct_field(self):
+        idl = """struct Person {
+   firstName string
+   email string optional
+}"""
+        expected = [ { "name" : "Person", "type" : "struct", 
+                       "extends" : "", "comment" : "",
+                       "fields" : [ field("firstName", "string"), 
+                                    field("email", "string", optional=True) ] } ]
+        self.assertEquals(expected, parse(idl))
+
+    def test_optional_return_type(self):
+        idl = """interface FooService {
+   sayHi() string optional
+}"""
+        expected = [ { "name": "FooService", "type": "interface", "comment": "",
+                       "functions" : 
+                       [ { "name" : "sayHi", "comment" : "", "params" : [ ],
+                           "returns" : ret_field("string", optional=True) } ] } ]
+        self.assertEquals(expected, parse(idl))
 
 if __name__ == "__main__":
     unittest.main()

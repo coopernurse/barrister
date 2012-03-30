@@ -24,7 +24,7 @@ struct User {
     email string
     emailVerified bool
     dateCreated int
-    age float
+    age float optional
 }
 
 enum Status {
@@ -129,6 +129,7 @@ class RuntimeTest(unittest.TestCase):
     def test_user_crud(self):
         svc = self.client.UserService
         user = newUser(email="foo@example.com")
+        del user["age"]  # field is optional
         resp = svc.create(user)
         self.assertTrue(resp["userId"])
         user2 = svc.get(resp["userId"])["user"]

@@ -115,3 +115,5 @@ except barrister.RpcException as e:
     # -32602 == invalid method parameters
     assert(e.code == -32602)
     print "Nope, wouldn't allow it. e.msg: %s" % e.msg
+
+print "Contact client tests successful!"

@@ -26,7 +26,7 @@ interface ContactService {
   //
   // If the contact exists but is not associated with the provided
   // userId, then a "Permission Denied" error is returned
-  get(contactId string, userId string) Contact
+  get(contactId string, userId string) Contact optional
 
   // Returns all contacts for the given user
   // If the user has no contacts, an empty list is returned

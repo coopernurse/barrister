@@ -124,9 +124,25 @@ class IdlScanner(Scanner):
         self.field["type"] = text
         self.field["is_array"] = is_array
         self.field["comment"] = self.get_comment()
+        self.field["optional"] = False
+        self.field_options = [ ]
+        self.begin("field-options")
+
+    def end_field_options(self, text):
+        text = "".join(self.field_options)
+        if text != "":
+            if text == "optional":
+                self.field["optional"] = True
+            else:
+                raise Exception("Invalid field option: %s" % text)
         self.cur["fields"].append(self.field)
         self.field = None
+        self.field_options = None
         self.begin("fields")
+
+    def end_field_options_and_block(self, text):
+        self.end_field_options(text)
+        self.end_block("")
 
     def begin_function(self, text):
         self.function = { "name" : text, "comment" : self.get_comment(), "params" : [ ] }
@@ -152,10 +168,25 @@ class IdlScanner(Scanner):
         if text.find("[]") == 0:
             text = text[2:]
             is_array = True
-        self.function["returns"] = { "type": text, "is_array": is_array }
+        self.function["returns"] = { "type": text, "is_array": is_array, "optional": False }
+        self.field_options = []
+        self.begin("function-return-options")
+
+    def end_return_options(self, text):
+        text = "".join(self.field_options)
+        if text != "":
+            if text == "optional":
+                self.function["returns"]["optional"] = True
+            else:
+                raise Exception("Invalid return option: %s" % text)
         self.cur["functions"].append(self.function)
         self.function = None
-        self.begin("end-function")
+        self.field_options = None
+        self.begin("functions")
+
+    def end_return_options_and_block(self, text):
+        self.end_return_options(text)
+        self.end_block(text)
 
     def end_value(self, text):
         if not text in self.cur["values"]:
@@ -180,6 +211,9 @@ class IdlScanner(Scanner):
 
     def append_comment(self, text):
         self.comment.append(text)
+
+    def append_field_options(self, text):
+        self.field_options.append(text)
 
     def end_comment(self, text):
         self.begin(self.prev_state)
@@ -236,6 +270,12 @@ class IdlScanner(Scanner):
                     (space,    IGNORE),
                     (Str('{'), 'invalid'),
                     (Str('}'), 'invalid') ]),
+            State('field-options', [
+                    (Str("\n"), end_field_options),
+                    (Str('}'),  end_field_options_and_block),
+                    (space,     IGNORE),
+                    (Str('{'),  'invalid'),
+                    (AnyChar, append_field_options)]),
             State('functions', [
                     (ident,    begin_function),
                     (space,    IGNORE),
@@ -262,6 +302,12 @@ class IdlScanner(Scanner):
                     (space,    IGNORE),
                     (ident,    end_return),
                     (arr_ident, end_return) ]),
+            State('function-return-options', [
+                    (Str("\n"), end_return_options),
+                    (Str('}'),  end_return_options_and_block),
+                    (space,     IGNORE),
+                    (Str('{'),  'invalid'),
+                    (AnyChar, append_field_options) ]),
             State('end-function', [
                     (Str("\n"), Begin('functions')),
                     (space, IGNORE) ]),

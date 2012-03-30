@@ -674,7 +674,7 @@ class Contract(object):
         elif self.interfaces.has_key(name):
             return self.interfaces[name]
         else:
-            raise RpcException(ERR_INVALID_PARAMS, "Unknown entity: '%s'", name)
+            raise RpcException(ERR_INVALID_PARAMS, "Unknown entity: '%s'" % name)
 
     def struct(self, struct_name):
         """
@@ -717,7 +717,9 @@ class Contract(object):
           val
             Value to validate against the expected type
         """
-        if is_array:
+        if expected_type.optional and val == None:
+            return True, None
+        elif is_array:
             if not isinstance(val, list):
                 return self._type_err(val, "list")
             else:
@@ -725,20 +727,20 @@ class Contract(object):
                     ok, msg = self.validate(expected_type, False, v)
                     if not ok:
                         return ok, msg
-        elif expected_type == "int":
+        elif expected_type.type == "int":
             if not isinstance(val, (long, int)):
                 return self._type_err(val, "int")
-        elif expected_type == "float":
+        elif expected_type.type == "float":
             if not isinstance(val, (float, int, long)):
                 return self._type_err(val, "float")
-        elif expected_type == "bool":
+        elif expected_type.type == "bool":
             if not isinstance(val, bool):
                 return self._type_err(val, "bool")
-        elif expected_type == "string":
+        elif expected_type.type == "string":
             if not isinstance(val, (str, unicode)):
                 return self._type_err(val, "string")
         else:
-            return self.get(expected_type).validate(val)
+            return self.get(expected_type.type).validate(val)
         return True, None
 
     def _type_err(self, val, expected):
@@ -833,7 +835,7 @@ class Struct(object):
         self.parent = None
         self.fields = { }
         for f in s["fields"]:
-            self.fields[f["name"]] = f
+            self.fields[f["name"]] = Type(f)
 
     def field(self, name):
         """
@@ -877,15 +879,14 @@ class Struct(object):
         for k, v in val.items():
             field = self.field(k)
             if field:
-                ok, msg = self.contract.validate(field["type"], 
-                                                 field["is_array"], v)
+                ok, msg = self.contract.validate(field, field.is_array, v)
                 if not ok:
-                    return False, "field '%s': %s" % (field["name"], msg)
+                    return False, "field '%s': %s" % (field.name, msg)
             else:
                 return False, "field '%s' not found in struct %s" % (k, self.name)
 
         for k, v in self.fields.items():
-            if not val.has_key(k):
+            if not val.has_key(k) and not v.optional:
                 return False, "field '%s' missing from: %s" % (k, str(val))
 
         return True, None
@@ -909,8 +910,10 @@ class Function(object):
         """
         self.contract = contract
         self.name = f["name"]
-        self.params = f["params"]
-        self.returns = f["returns"]
+        self.params = []
+        for p in f["params"]:
+            self.params.append(Type(p))
+        self.returns = Type(f["returns"])
         self.full_name = "%s.%s" % (iface_name, self.name)
         
     def validate_params(self, params):
@@ -938,8 +941,8 @@ class Function(object):
         Validates resp against expected return type for this function.  
         Raises RpcException if the response is invalid.
         """
-        ok, msg = self.contract.validate(self.returns["type"], 
-                                         self.returns["is_array"], resp)
+        ok, msg = self.contract.validate(self.returns, 
+                                         self.returns.is_array, resp)
         if not ok:
             vals = (self.full_name, str(resp), msg)
             msg = "Function '%s' invalid response: '%s'. %s" % vals
@@ -956,9 +959,21 @@ class Function(object):
           param
             Parameter value to validate
         """
-        ok, msg = self.contract.validate(expected["type"], 
-                                         expected["is_array"], param)
+        ok, msg = self.contract.validate(expected,
+                                         expected.is_array, param)
         if not ok:
-            vals = (self.full_name, expected["name"], msg)
+            vals = (self.full_name, expected.name, msg)
             msg = "Function '%s' invalid param '%s'. %s" % vals
             raise RpcException(ERR_INVALID_PARAMS, msg)
+
+class Type(object):
+
+    def __init__(self, type_dict):
+        self.name = ""
+        self.optional = False
+        if type_dict.has_key("name"):
+            self.name = type_dict["name"]
+        self.type = type_dict["type"]
+        self.is_array = type_dict["is_array"]
+        if type_dict.has_key("optional"):
+            self.optional = type_dict["optional"]
