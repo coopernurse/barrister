@@ -24,8 +24,6 @@ ERR_INTERNAL = -32603
 ERR_UNKNOWN = -32000
 ERR_INVALID_RESP = -32001
 
-LOG = logging.getLogger('barrister')
-
 def contract_from_file(fname):
     """
     Loads a Barrister IDL JSON from the given file and returns a Contract class
@@ -119,6 +117,8 @@ class Server(object):
             If True, responses from handler methods will be validated against the Contract and rejected
             if they are malformed
         """
+        logging.basicConfig()
+        self.log = logging.getLogger("barrister")
         self.validate_req  = validate_request
         self.validate_resp = validate_response
         self.contract = contract
@@ -193,7 +193,7 @@ class Server(object):
         except RpcException as e:
             return self._err(reqid, e.code, e.msg, e.data)
         except:
-            LOG.exception("Error processing request: %s" % str(req))
+            self.log.exception("Error processing request: %s" % str(req))
             return self._err(reqid, ERR_UNKNOWN, "Server error. Check logs for details.")
         
 
@@ -700,7 +700,7 @@ class Contract(object):
         else:
             raise RpcException(ERR_INVALID_PARAMS, "Unknown interface: '%s'", iface_name)
 
-    def validate(self, expected_type, is_array, val, allow_missing=True):
+    def validate(self, expected_type, is_array, val):
         """
         Validates that the expected type matches the value
 
@@ -716,17 +716,13 @@ class Contract(object):
             If True then require that the val be a list
           val
             Value to validate against the expected type
-          allow_missing
-            If True, allow undefined struct members or null values
         """
-        if allow_missing and val == None:
-            return True, None
-        elif is_array:
+        if is_array:
             if not isinstance(val, list):
                 return self._type_err(val, "list")
             else:
                 for v in val:
-                    ok, msg = self.validate(expected_type, False, v, allow_missing)
+                    ok, msg = self.validate(expected_type, False, v)
                     if not ok:
                         return ok, msg
         elif expected_type == "int":
@@ -742,7 +738,7 @@ class Contract(object):
             if not isinstance(val, (str, unicode)):
                 return self._type_err(val, "string")
         else:
-            return self.get(expected_type).validate(val, allow_missing)
+            return self.get(expected_type).validate(val)
         return True, None
 
     def _type_err(self, val, expected):
@@ -798,7 +794,7 @@ class Enum(object):
         for v in enum["values"]:
             self.values.append(v["value"])
 
-    def validate(self, val, allow_missing):
+    def validate(self, val):
         """
         Validates that the val is in the list of values for this Enum.
 
@@ -810,8 +806,6 @@ class Enum(object):
         :Parameters:
           val
             Value to validate.  Should be a string.
-          allow_missing
-            Not used
         """
         if val in self.values:
             return True, None
@@ -862,7 +856,7 @@ class Struct(object):
         else:
             return None
 
-    def validate(self, val, allow_missing):
+    def validate(self, val):
         """
         Validates that the val matches the expected fields for this struct.
         val must be a dict, and must contain only fields represented by this struct and its
@@ -876,28 +870,23 @@ class Struct(object):
         :Parameters:
           val
             Value to validate.  Must be a dict
-          allow_missing
-            If False then val MUST contain all fields defined on the struct and its ancestors
         """
         if type(val) is not dict:
             return False, "%s is not a dict" % (str(val))
 
         for k, v in val.items():
             field = self.field(k)
-            if allow_missing and v == None:
-                pass
-            elif field:
-                ok, msg = self.contract.validate(field["type"], field["is_array"],
-                                                 v, allow_missing)
+            if field:
+                ok, msg = self.contract.validate(field["type"], 
+                                                 field["is_array"], v)
                 if not ok:
                     return False, "field '%s': %s" % (field["name"], msg)
             else:
                 return False, "field '%s' not found in struct %s" % (k, self.name)
 
-        if not allow_missing:
-            for k, v in self.fields.items():
-                if not val.has_key(k):
-                    return False, "field '%s' missing from: %s" % (k, str(val))
+        for k, v in self.fields.items():
+            if not val.has_key(k):
+                return False, "field '%s' missing from: %s" % (k, str(val))
 
         return True, None
 
@@ -950,8 +939,7 @@ class Function(object):
         Raises RpcException if the response is invalid.
         """
         ok, msg = self.contract.validate(self.returns["type"], 
-                                         self.returns["is_array"], resp, 
-                                         allow_missing=True)
+                                         self.returns["is_array"], resp)
         if not ok:
             vals = (self.full_name, str(resp), msg)
             msg = "Function '%s' invalid response: '%s'. %s" % vals

@@ -188,8 +188,8 @@ class RuntimeTest(unittest.TestCase):
 
     def test_batch(self):
         batch = self.client.start_batch()
-        batch.UserService.create(newUser(userId="1"))
-        batch.UserService.create(newUser(userId="2"))
+        batch.UserService.create(newUser(userId="1", email="foo@bar.com"))
+        batch.UserService.create(newUser(userId="2", email="foo@bar.com"))
         batch.UserService.countUsers()
         result = batch.send()
         self.assertEquals(3, result.count)
