@@ -12,4 +12,4 @@ fi
 
 # generate docs
 rm -rf doc
-epydoc --parse-only -o doc --docformat=restructuredText --exclude=test barrister
+epydoc -q --parse-only -o doc --docformat=restructuredText --exclude=test barrister

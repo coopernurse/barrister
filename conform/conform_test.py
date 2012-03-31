@@ -76,7 +76,7 @@ class ConformTest(unittest.TestCase):
 
     def test_java_server(self):
         cmd = ["java", "-DidlJson=conform.json", "-jar", winstone_jar, 
-               "--httpPort=9233", java_war ]
+               "--httpPort=9233", "--ajp13Port=-1", java_war ]
         self._test_server(3, "java", cmd)
 
     def _test_invalid_json(self):
@@ -149,7 +149,7 @@ class ConformTest(unittest.TestCase):
                         err = (i, len(expected))
                         self.fail("client produced %d lines - expected %d" % err)
         finally:
-            r = urllib2.urlopen("http://localhost:9233/exit")
+            r = urllib2.urlopen("http://127.0.0.1:9233/exit")
             r.read()
             r.close()
             s_proc.join()
