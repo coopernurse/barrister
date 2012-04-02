@@ -1,4 +1,5 @@
 env
+sandbox/
 examples/*.html
 examples/*.json
 conform/*.out
