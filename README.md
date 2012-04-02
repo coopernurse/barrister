@@ -47,4 +47,8 @@ Python 2.3 and 2.4 users will need to:
 * View the [API Reference](http://barrister.bitmechanic.com/api/python/latest/) based on the 
   latest commit to master
 
+## License
+
+Distributed under the MIT license.  See LICENSE file for details.
+
 
