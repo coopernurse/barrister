@@ -1,6 +1,8 @@
+MANIFEST
 env
 sandbox/
 doc/
+dist/
 examples/*.html
 examples/*.json
 conform/*.out

@@ -1,0 +1,2 @@
+bin/barrister
+recursive-include barrister *.py
