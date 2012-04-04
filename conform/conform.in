@@ -60,6 +60,9 @@ A|say_hi|["blah"]|rpcerr|-32602
 A|add|[3.3,5]|rpcerr|-32602
 A|calc|[[2,3,"6"], "add"]|rpcerr|-32602
 
+# invalid enum
+A|calc|[[2,3,3], "subtract"]|rpcerr|-32602
+
 # wrong param count
 B|echo|null|rpcerr|-32602
 
