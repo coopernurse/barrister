@@ -14,8 +14,18 @@ except:
 
 # Barrister conformance test runner
 
+def env_get(envkey, defval):
+    if os.environ.has_key(envkey):
+        return os.environ[envkey]
+    else:
+        return defval
+
 home = os.environ["HOME"]
 
+#
+# resolve homes
+barrister_java = env_get("BARRISTER_JAVA", "../../barrister-java")
+barrister_node = env_get("BARRISTER_NODE", "../../barrister-js")
 
 #
 # Java config
@@ -23,9 +33,6 @@ home = os.environ["HOME"]
 m2_jackson = "%s/.m2/repository/org/codehaus/jackson" % home
 jackson_deps = [ "jackson-mapper-asl/1.9.4/jackson-mapper-asl-1.9.4.jar",
                  "jackson-core-asl/1.9.4/jackson-core-asl-1.9.4.jar" ]
-barrister_java = "../../barrister-java"
-if os.environ.has_key("BARRISTER_JAVA"):
-    barrister_java = os.environ["BARRISTER_JAVA"]
 java_cp = "%s/target/classes:%s/conform/target/classes" % (barrister_java, barrister_java)
 for d in jackson_deps:
     java_cp += ":%s/%s" % (m2_jackson, d)
@@ -39,7 +46,8 @@ java_war = "%s/conform/target/barrister-conform-test.war" % barrister_java
 clients = [ 
     # format: name, command line
     [ "python-client", ["python", "client.py"] ],
-    [ "java-client", ["java", "-cp", java_cp, "com.bitmechanic.barrister.conform.Client" ] ]
+    [ "java-client", ["java", "-cp", java_cp, "com.bitmechanic.barrister.conform.Client" ] ],
+    [ "node-client", ["node", "%s/conform/client.js" % barrister_node ] ]
 ]
 
 verbose = os.environ.has_key('CONFORM_VERBOSE')
@@ -78,6 +86,10 @@ class ConformTest(unittest.TestCase):
         cmd = ["java", "-DidlJson=conform.json", "-jar", winstone_jar, 
                "--httpPort=9233", "--ajp13Port=-1", java_war ]
         self._test_server(3, "java", cmd)
+
+    def test_node_server(self):
+        cmd = ["node", "%s/conform/server.js" % barrister_node ]
+        self._test_server(1, "node", cmd)
 
     def _test_invalid_json(self):
         headers = { "Content-Type" : "application/json" }
