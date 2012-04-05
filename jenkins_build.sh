@@ -13,6 +13,8 @@ fi
 # setup node
 if [ -n "$BARRISTER_NODE" ]
 then
+  # force module to reinstall
+  rm -rf node_modules
   npm install $BARRISTER_NODE
 fi
 
