@@ -165,16 +165,24 @@ class Server(object):
           req
             The request. Either a list of dicts, or a single dict.
         """
+        resp = None
+
+        if self.log.isEnabledFor(logging.DEBUG):
+            self.log.debug("Request: %s" % str(req))
+
         if isinstance(req, list):
             if len(req) < 1:
-                return self._err(None, ERR_INVALID_REQ, "Invalid Request. Empty batch.")
-
-            resp = [ ]
-            for r in req:
-                resp.append(self._call_and_format(r))
-            return resp
+                resp = self._err(None, ERR_INVALID_REQ, "Invalid Request. Empty batch.")
+            else:
+                resp = [ ]
+                for r in req:
+                    resp.append(self._call_and_format(r))
         else:
-            return self._call_and_format(req)
+            resp = self._call_and_format(req)
+
+        if self.log.isEnabledFor(logging.DEBUG):
+            self.log.debug("Response: %s" % str(resp))
+        return resp
 
     def _err(self, reqid, code, msg, data=None):
         """
@@ -369,6 +377,8 @@ class Client(object):
             for logging or other purposes.  UUIDs are used by default, but you can substitute another
             function if you prefer something shorter.
         """
+        logging.basicConfig()
+        self.log = logging.getLogger("barrister")
         self.transport = transport
         self.validate_req  = validate_request
         self.validate_resp = validate_response
@@ -392,7 +402,11 @@ class Client(object):
             List of parameters to pass to the function
         """
         req  = self.to_request(iface_name, func_name, params)
+        if self.log.isEnabledFor(logging.DEBUG):
+            self.log.debug("Request: %s" % str(req))
         resp = self.transport.request(req)
+        if self.log.isEnabledFor(logging.DEBUG):
+            self.log.debug("Response: %s" % str(resp))
         return self.to_result(iface_name, func_name, resp)
 
     def to_request(self, iface_name, func_name, params):

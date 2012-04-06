@@ -3,10 +3,14 @@
 import sys
 import barrister
 import codecs
+import logging
 try:
     import json
 except:
     import simplejson as json
+
+logging.basicConfig()
+logging.getLogger("barrister").setLevel(logging.DEBUG)
 
 trans    = barrister.HttpTransport("http://localhost:9233/")
 client   = barrister.Client(trans, validate_request=False)
