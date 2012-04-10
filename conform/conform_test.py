@@ -26,6 +26,7 @@ home = os.environ["HOME"]
 # resolve homes
 barrister_java = env_get("BARRISTER_JAVA", "../../barrister-java")
 barrister_node = env_get("BARRISTER_NODE", "../../barrister-js")
+barrister_php  = env_get("BARRISTER_PHP", "../../barrister-php")
 
 #
 # Java config
@@ -47,7 +48,8 @@ clients = [
     # format: name, command line
     [ "python-client", ["python", "client.py"] ],
     [ "java-client", ["java", "-cp", java_cp, "com.bitmechanic.barrister.conform.Client" ] ],
-    [ "node-client", ["node", "%s/conform/client.js" % barrister_node ] ]
+    [ "node-client", ["node", "%s/conform/client.js" % barrister_node ] ],
+    [ "php-client",  ["php", "%s/conform/client.php" % barrister_php ] ]
 ]
 
 verbose = os.environ.has_key('CONFORM_VERBOSE')
@@ -58,17 +60,21 @@ def log(msg):
 
 class Runner(threading.Thread):
 
-    def __init__(self, name, cmd):
+    def __init__(self, name, cmd, cwd=None):
         super(Runner, self).__init__()
         self.name = name
         self.cmd = cmd
+        self.cwd = cwd
         self.exit_code = None
         self.proc = None
+
+    def terminate(self):
+        self.proc.terminate()
 
     def run(self):
         log("[%s] Starting process: %s" % (self.name, " ".join(self.cmd)))
         self.proc = Popen(self.cmd, stdout=PIPE, stderr=PIPE, close_fds=False, 
-                          shell=False)
+                          shell=False, cwd=self.cwd)
         out, err = self.proc.communicate()
         for line in out.split("\n"):
             log("[%s out] %s" % (self.name, line))
@@ -91,19 +97,23 @@ class ConformTest(unittest.TestCase):
         cmd = ["node", "%s/conform/server.js" % barrister_node ]
         self._test_server(1, "node", cmd)
 
+    def test_php_server(self):
+        cmd = ["python", "%s/conform/webserver.py" % barrister_php, "9233" ]
+        self._test_server(1, "php", cmd, cwd="%s/conform" % barrister_php)
+
     def _test_invalid_json(self):
         headers = { "Content-Type" : "application/json" }
         invalid = [ "{", "[", "--" ]
         for s in invalid:
             data = """{ "jsonrpc": "2.0", "method": "foo", "params": %s }""" % s
-            req = urllib2.Request("http://localhost:9233", data, headers)
+            req = urllib2.Request("http://localhost:9233/", data, headers)
             f = urllib2.urlopen(req)
             json_resp = f.read()
             f.close()
             resp = json.loads(json_resp)
-            self.assertEquals(resp["error"]["code"], -32700)
+            self.assertEquals(resp["error"]["code"], -32700, "Fail using invalid JSON: %s" % s)
 
-    def _test_server(self, sleep_time, s_name, s_cmd):
+    def _test_server(self, sleep_time, s_name, s_cmd, cwd=None):
         errs = [ ]
         expected = [ ]
         infile = "conform.in"
@@ -114,7 +124,7 @@ class ConformTest(unittest.TestCase):
                 expected.append(line)
         inf.close()
         try:
-            s_proc = Runner(s_name, s_cmd)
+            s_proc = Runner(s_name, s_cmd, cwd=cwd)
             s_proc.start()
             time.sleep(sleep_time)
 
@@ -161,9 +171,7 @@ class ConformTest(unittest.TestCase):
                         err = (i, len(expected))
                         self.fail("client produced %d lines - expected %d" % err)
         finally:
-            r = urllib2.urlopen("http://127.0.0.1:9233/exit")
-            r.read()
-            r.close()
+            s_proc.terminate()
             s_proc.join()
             if len(errs) > 0:
                 self.fail("\n".join(errs))

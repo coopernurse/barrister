@@ -5,6 +5,7 @@ import barrister
 import logging
 import math
 import sys
+import signal
 
 class A(object):
 
@@ -64,13 +65,6 @@ server = barrister.Server(barrister.contract_from_file(sys.argv[1]))
 server.add_handler("A", A())
 server.add_handler("B", B())
 
-@app.route("/exit")
-def exit():
-    func = request.environ.get('werkzeug.server.shutdown')
-    func()
-    sys.stdout.flush()
-    return "shutting down"
-
 @app.route("/", methods=["POST"])
 def rpc():
     resp_json = server.call_json(request.data)
@@ -78,4 +72,8 @@ def rpc():
     resp.headers['Content-Type'] = 'application/json'
     return resp
 
-app.run(debug=True, host="127.0.0.1", port=9233)
+def sigterm_handler(signum, frame):
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, sigterm_handler)
+app.run(debug=False, host="127.0.0.1", port=9233)
