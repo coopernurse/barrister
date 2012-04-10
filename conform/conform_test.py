@@ -27,6 +27,7 @@ home = os.environ["HOME"]
 barrister_java = env_get("BARRISTER_JAVA", "../../barrister-java")
 barrister_node = env_get("BARRISTER_NODE", "../../barrister-js")
 barrister_php  = env_get("BARRISTER_PHP", "../../barrister-php")
+barrister_ruby = env_get("BARRISTER_RUBY", "../../barrister-ruby")
 
 #
 # Java config
@@ -49,7 +50,8 @@ clients = [
     [ "python-client", ["python", "client.py"] ],
     [ "java-client", ["java", "-cp", java_cp, "com.bitmechanic.barrister.conform.Client" ] ],
     [ "node-client", ["node", "%s/conform/client.js" % barrister_node ] ],
-    [ "php-client",  ["php", "%s/conform/client.php" % barrister_php ] ]
+    [ "php-client",  ["php", "%s/conform/client.php" % barrister_php ] ],
+    [ "ruby-client", ["ruby", "%s/conform/client.rb" % barrister_ruby ] ]
 ]
 
 verbose = os.environ.has_key('CONFORM_VERBOSE')
@@ -110,7 +112,11 @@ class ConformTest(unittest.TestCase):
             f = urllib2.urlopen(req)
             json_resp = f.read()
             f.close()
-            resp = json.loads(json_resp)
+            try:
+                resp = json.loads(json_resp)
+            except:
+                print "Unable to parse: %s" % json_resp
+                raise
             self.assertEquals(resp["error"]["code"], -32700, "Fail using invalid JSON: %s" % s)
 
     def _test_server(self, sleep_time, s_name, s_cmd, cwd=None):
