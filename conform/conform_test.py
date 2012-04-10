@@ -51,7 +51,7 @@ clients = [
     [ "java-client", ["java", "-cp", java_cp, "com.bitmechanic.barrister.conform.Client" ] ],
     [ "node-client", ["node", "%s/conform/client.js" % barrister_node ] ],
     [ "php-client",  ["php", "%s/conform/client.php" % barrister_php ] ],
-    [ "ruby-client", ["ruby", "%s/conform/client.rb" % barrister_ruby ] ]
+    [ "ruby-client", ["ruby", "-rubygems", "%s/conform/client.rb" % barrister_ruby ] ]
 ]
 
 verbose = os.environ.has_key('CONFORM_VERBOSE')
