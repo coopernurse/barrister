@@ -34,8 +34,11 @@ if __name__ == "__main__":
         f.close()
 
     if options.docco:
+        title = options.title
+        if not title:
+            title = args[0]
         f = open(options.docco, "w")
-        f.write(docco_html(options.title, parsed))
+        f.write(docco_html(title, parsed))
         f.close()
 
     if options.json:
