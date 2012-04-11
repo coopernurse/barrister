@@ -104,7 +104,7 @@ class ConformTest(unittest.TestCase):
         self._test_server(1, "php", cmd, cwd="%s/conform" % barrister_php)
 
     def test_ruby_server(self):
-        cmd = ["ruby", "%s/conform/server.rb" % barrister_ruby, "-p", "9233" ]
+        cmd = ["ruby", "-rubygems", "%s/conform/server.rb" % barrister_ruby, "-p", "9233" ]
         self._test_server(1, "ruby", cmd)
 
     def _test_invalid_json(self):
