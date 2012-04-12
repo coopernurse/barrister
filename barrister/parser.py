@@ -6,8 +6,24 @@
     :copyright: 2012 by James Cooper.
     :license: MIT, see LICENSE for more details.
 """
+
+import time
+import copy
+import operator
 import cStringIO
 from plex import Scanner, Lexicon, Str, State, IGNORE, Begin, Any, AnyBut, AnyChar, Range, Rep
+try:
+    import json
+except:
+    import simplejson as json
+
+def md5(s):
+    try:
+        import hashlib
+        return hashlib.md5(s).hexdigest()
+    except:
+        import md5
+        return md5.new(s).hexdigest()
 
 native_types = [ "int", "float", "string", "bool" ]
 letter       = Range("AZaz")
@@ -19,7 +35,7 @@ space        = Any(" \t\n\r")
 comment      = Str("// ") | Str("//")
 type_opts    = Str("[") + Rep(AnyBut("{}]\n")) + Str("]")
 
-def parse(idl_text, name=None, validate=True):
+def parse(idl_text, name=None, validate=True, add_meta=True):
     if isinstance(idl_text, (str, unicode)):
         idl_text = cStringIO.StringIO(idl_text)
 
@@ -28,6 +44,8 @@ def parse(idl_text, name=None, validate=True):
     if validate:
         scanner.validate()
     if len(scanner.errors) == 0:
+        if add_meta:
+            scanner.add_meta()
         return scanner.parsed
     else:
         raise IdlParseException(scanner.errors)
@@ -51,6 +69,53 @@ class IdlScanner(Scanner):
     def eof(self):
         if self.cur:
             self.add_error("Unexpected end of file")
+
+    def add_meta(self):
+        import barrister
+        meta = {
+            "type"              : "meta",
+            "barrister_version" : barrister.__version__,
+            "date_generated"    : int(time.time() * 1000),
+            "checksum"          : self.get_checksum()
+        }
+        self.parsed.append(meta)
+
+    def get_checksum(self):
+        """
+        Returns a checksum based on the IDL that ignores comments and ordering,
+        but detects changes to types, parameter order, and enum values.
+        """
+        arr = [ ]
+        for elem in self.parsed:
+            if elem["type"] == "struct":
+                s = ""
+                fields = copy.copy(elem["fields"])
+                fields.sort(key=operator.itemgetter("name"))
+                for f in fields:
+                    s += "\t%s\t%s\t%s\t%s" % (f["name"], f["type"], f["is_array"], f["optional"])
+                arr.append("struct\t%s\t%s\t%s\n" % (elem["name"], elem["extends"], s))
+            elif elem["type"] == "enum":
+                s = "enum\t%s" % elem["name"]
+                vals = copy.copy(elem["values"])
+                vals.sort(key=operator.itemgetter("value"))
+                for v in vals: s += "\t%s" % v["value"]
+                s += "\n"
+                arr.append(s)
+            elif elem["type"] == "interface":
+                s = "interface\t%s" % elem["name"]
+                funcs = copy.copy(elem["functions"])
+                funcs.sort(key=operator.itemgetter("name"))
+                for f in funcs:
+                    s += "[%s" % f["name"]
+                    for p in f["params"]:
+                        s += "\t%s\t%s" % (p["type"], p["is_array"])
+                    ret = f["returns"]
+                    s += "(%s\t%s\t%s)]" % (ret["type"], ret["is_array"], ret["optional"])
+                s += "\n"
+                arr.append(s)
+        arr.sort()
+        #print arr
+        return md5(json.dumps(arr))
 
     def add_error(self, message, line=-1):
         if line < 0:

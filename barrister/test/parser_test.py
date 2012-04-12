@@ -11,6 +11,7 @@
     :license: MIT, see LICENSE for more details.
 """
 
+import time
 import unittest
 from barrister.parser import parse, IdlParseException
 
@@ -35,7 +36,7 @@ struct Person {
                      { "type" : "struct", "name" : "Person", "extends" : "",
                        "comment" : "this is a person", "fields" : [
                     field("age", "int") ] } ]
-        self.assertEquals(expected, parse(idl))
+        self.assertEquals(expected, parse(idl, add_meta=False))
 
     def test_parse_struct(self):
         idl = """struct Person {
@@ -46,7 +47,7 @@ age int
                        "type" : "struct", 
                        "comment" : "", "extends" : "",
                        "fields" : [ field("email", "string"), field("age", "int") ] } ]
-        self.assertEquals(expected, parse(idl))
+        self.assertEquals(expected, parse(idl, add_meta=False))
 
     def test_parse_multiple(self):
         idl = """struct Person { email string } 
@@ -59,7 +60,7 @@ struct Animal { furry bool }"""
                        "type" : "struct", 
                        "comment" : "", "extends" : "",
                        "fields" : [ field("furry", "bool") ] } ]
-        self.assertEquals(expected, parse(idl))
+        self.assertEquals(expected, parse(idl, add_meta=False))
 
     def test_parse_enum(self):
         idl = """enum Status { success fail
@@ -68,7 +69,7 @@ invalid }"""
                        "values" : [ { "value" : "success", "comment" : "" },
                                     { "value" : "fail", "comment" : "" },
                                     { "value" : "invalid", "comment" : "" } ] } ]
-        self.assertEquals(expected, parse(idl))
+        self.assertEquals(expected, parse(idl, add_meta=False))
 
     def test_parse_interface(self):
         idl = """interface MyService {
@@ -87,12 +88,12 @@ invalid }"""
                     { "name" : "login", "comment" : "",
                       "returns" : ret_field("LoginResponse"), "params" : [
                             { "type" : "LoginRequest", "name" : "req", "is_array": False } ] } ] } ]
-        self.assertEquals(expected, parse(idl, validate=False))
+        self.assertEquals(expected, parse(idl, add_meta=False, validate=False))
 
     def test_invalid_struct(self):
         idl = """struct foo { """
         try:
-            parse(idl)
+            parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 1, "message" : "Unexpected end of file" } ]
@@ -102,7 +103,7 @@ invalid }"""
         idls = [ "struct  {", "enum {", "interface { " ]
         for idl in idls:
             try:
-                parse(idl)
+                parse(idl, add_meta=False)
                 self.fail("should have thrown exception")
             except IdlParseException as e:
                 expected = [ { "line": 1, "message" : "Missing identifier" } ]
@@ -115,7 +116,7 @@ invalid }"""
         expected = [ { "name" : "Status", "type" : "enum", "comment" : "",
                        "values" : [ { "comment" : "Request successful",
                                       "value": "success" } ] } ]
-        self.assertEquals(expected, parse(idl))        
+        self.assertEquals(expected, parse(idl, add_meta=False))        
 
     def test_array_type(self):
         idl = """struct Animal  {
@@ -123,7 +124,7 @@ invalid }"""
         expected = [ { "name" : "Animal", "type" : "struct", "comment" : "",
                        "extends" : "",
                  "fields" : [ field("friend_names", "string", "", True) ] } ]
-        self.assertEquals(expected, parse(idl))
+        self.assertEquals(expected, parse(idl, add_meta=False))
 
     def test_array_return_type(self):
         idl = """interface FooService {
@@ -134,7 +135,7 @@ invalid }"""
                     { "name" : "repeat",  "comment" : "",
                       "returns" : ret_field("string", True),
                       "params" : [ { "type" : "string", "name" : "s", "is_array": False } ] } ] } ]
-        self.assertEquals(expected, parse(idl))
+        self.assertEquals(expected, parse(idl, add_meta=False))
 
     def test_struct_comments(self):
         idl = """struct Animal   {
@@ -143,7 +144,7 @@ invalid }"""
         expected = [ { "name" : "Animal", "type" : "struct", "comment" : "",
                        "extends" : "",
                        "fields" : [ field("color", "string", "fur color") ] } ]
-        self.assertEquals(expected, parse(idl))        
+        self.assertEquals(expected, parse(idl, add_meta=False))        
 
     def test_function_comments(self):
         idl = """interface FooService {
@@ -159,7 +160,7 @@ invalid }"""
                       "params" : [ 
                             { "type" : "int", "name" : "a", "is_array": False },
                             { "type" : "int", "name" : "b", "is_array": True } ] } ] } ]
-        self.assertEquals(expected, parse(idl))        
+        self.assertEquals(expected, parse(idl, add_meta=False))        
 
     def test_interface_comments(self):
         idl = """// FooService is a..
@@ -173,7 +174,7 @@ interface FooService {
                     { "name" : "blah99", "returns" : ret_field("blah_Response"),
                       "comment" : "", "params" : [ ] }
                     ] } ]
-        self.assertEquals(expected, parse(idl, validate=False))
+        self.assertEquals(expected, parse(idl, add_meta=False, validate=False))
         
 
     def test_extends_struct(self):
@@ -191,7 +192,7 @@ struct Cat extends Animal {
                      { "name" : "Cat", "type" : "struct", 
                        "extends" : "Animal", "comment" : "",
                        "fields" : [ field("purr_volume", "int") ] } ]
-        self.assertEquals(expected, parse(idl))
+        self.assertEquals(expected, parse(idl, add_meta=False))
 
     def test_no_dupe_types(self):
         idl = """struct Animal {
@@ -211,7 +212,7 @@ interface Blarg {
     do_other() bool
 }"""
         try:
-            parse(idl)
+            parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 4, "message" : "type Animal already defined" },
@@ -227,7 +228,7 @@ struct Location {
     residents []Animal
 }"""
         try:
-            parse(idl)
+            parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 0, "message" : "cycle detected in: struct Animal" },
@@ -242,7 +243,7 @@ struct TaskResult {
     toLoan []Book
     toAck  []Book
 }"""
-        parse(idl)
+        parse(idl, add_meta=False)
 
     def test_interface_cant_be_field_type(self):
         idl = """struct Animal {
@@ -252,7 +253,7 @@ interface FooService {
     do_something() bool
 }"""
         try:
-            parse(idl)
+            parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 0, "message" : "interface FooService cannot be a field type" } ]
@@ -269,7 +270,7 @@ struct Blarg extends Foo {
    a int
 }"""
         try:
-            parse(idl)
+            parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 0, "message" : "undefined type: Color" },
@@ -290,7 +291,7 @@ struct Manx extends Cat {
    gender bool
 }"""
         try:
-            parse(idl)
+            parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 0, "message" : "Cat cannot redefine parent field color" },
@@ -303,7 +304,7 @@ struct Animal extends Status {
     color string
 }"""
         try:
-            parse(idl)
+            parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 0, "message" : "Animal cannot extend enum Status" } ]
@@ -314,7 +315,7 @@ struct Animal extends Status {
     color string
 }"""
         try:
-            parse(idl)
+            parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 0, "message" : "Animal cannot extend float" } ]
@@ -323,7 +324,7 @@ struct Animal extends Status {
     def test_struct_must_have_fields(self):
         idl = "struct Animal { }"
         try:
-            parse(idl)
+            parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 1, "message" : "Animal must have at least one field" } ]
@@ -332,7 +333,7 @@ struct Animal extends Status {
     def test_interface_must_have_funcs(self):
         idl = "interface FooService { }"
         try:
-            parse(idl)
+            parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 1, "message" : "FooService must have at least one function" } ]
@@ -341,7 +342,7 @@ struct Animal extends Status {
     def test_enum_must_have_values(self):
         idl = "enum Status { }"
         try:
-            parse(idl)
+            parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 1, "message" : "Status must have at least one value" } ]
@@ -356,7 +357,7 @@ interface FooService {
     subtract(a int, b int) BaseResponse
 }"""
         # should work - cycle detection should reset per function
-        parse(idl)
+        parse(idl, add_meta=False)
 
     def test_interface_cant_be_param(self):
         idl = """interface BlargService {
@@ -367,7 +368,7 @@ interface FooService {
     subtract(a int, b int) BlargService
 }"""
         try:
-            parse(idl)
+            parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
             expected = [ { "line": 0, "message" : "interface BlargService cannot be a field type" },
@@ -383,7 +384,7 @@ interface FooService {
                        "extends" : "", "comment" : "",
                        "fields" : [ field("firstName", "string"), 
                                     field("email", "string", optional=True) ] } ]
-        self.assertEquals(expected, parse(idl))
+        self.assertEquals(expected, parse(idl, add_meta=False))
 
     def test_optional_return_type(self):
         idl = """interface FooService {
@@ -393,7 +394,48 @@ interface FooService {
                        "functions" : 
                        [ { "name" : "sayHi", "comment" : "", "params" : [ ],
                            "returns" : ret_field("string", optional=True) } ] } ]
-        self.assertEquals(expected, parse(idl))
+        self.assertEquals(expected, parse(idl, add_meta=False))
+
+    def test_add_meta(self):
+        idl = """interface FooService {
+    do_foo() string
+}"""
+        start = int(time.time() * 1000)
+        parsed = parse(idl, add_meta=True)
+        meta = parsed[-1]
+        generated = meta["date_generated"]
+        checksum = meta["checksum"]
+        stop = int(time.time() * 1000)
+        self.assertTrue(generated >= start and generated <= stop)
+        self.assertTrue(checksum != None)
+
+    def test_meta_checksum(self):
+        base = "enum Y {\ndog\ncat\n}\nstruct Z {\n a int }\n"
+        base2 = "// foo\nstruct Z {\n //foo2\na int }\nenum Y {\ncat\ndog\n}\n"
+        equivalent = [ base+"interface FooService {\n  do_foo() string\n}",
+                       "interface FooService {\n  do_foo() string\n}"+base2,
+                       base+" interface  FooService  {\n  // stuff\n do_foo() string\n\n}" ]
+        first_checksum = None
+        for idl in equivalent:
+            parsed = parse(idl, add_meta=True)
+            meta = parsed[-1]
+            checksum = meta["checksum"]
+            if first_checksum == None:
+                first_checksum = checksum
+            else:
+                self.assertEquals(first_checksum, checksum)
+
+        base3 = "enum Y {\ndog2\ncat\n}\nstruct Z {\n a int }\n"
+        base4 = "enum Y {\ndog\ncat\n}\nstruct Z {\n a float }\n"
+        different = [ base3+"interface FooService {\n  do_foo() string\n}",
+                      base4+"interface FooService {\n  do_foo() string\n}",
+                      base+"interface FooService {\n  do_foo(a int) string\n}",
+                      base+"interface FooService {\n  do_foo(a int) string\n do_bar() int\n}",
+                      base+"// foo interface\n interface  FooService  {\n  // stuff\n do_foo() float\n\n}" ]
+        for idl in different:
+            parsed = parse(idl, add_meta=True)
+            meta = parsed[-1]
+            self.assertNotEquals(first_checksum, meta["checksum"])
 
 if __name__ == "__main__":
     unittest.main()
