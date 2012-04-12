@@ -69,6 +69,15 @@ def idgen_seq():
     """
     return str(idgen_seq_counter.next())
 
+def err_response(reqid, code, msg, data=None):
+    """
+    Formats a JSON-RPC error as a dict with keys: 'jsonrpc', 'id', 'error'
+    """
+    err = { "code": code, "message": msg }
+    if data:
+        err["data"] = data
+    return { "jsonrpc": "2.0", "id": reqid, "error": err }
+
 class RpcException(Exception, json.JSONEncoder):
     """
     Represents a JSON-RPC style exception.  Server implementations should raise this
@@ -97,6 +106,91 @@ class RpcException(Exception, json.JSONEncoder):
             s += "%s data=%s" % (s, str(self.data))
         return s
 
+class RequestContext(object):
+    """
+    Stores state about a single request, including properties passed
+    into Server.call
+    """
+
+    def __init__(self, props, req):
+        """
+        Creates a new RequestContext
+
+        :Parameters:
+          props
+            Dict of meta properties for this request
+          req
+            Dict that represents a single JSON-RPC request
+        """
+        self.props    = props
+        self.request  = req
+        self.response = None
+        self.error    = None
+
+    def func_name(self):
+        return unpack_method(self.request["method"])[1]
+
+    def get_prop(self, key, default_val=None):
+        """
+        Returns a property set on the context.
+
+        :Parameters:
+          key
+            String key to lookup in the context props dict
+          default_val
+            Value to return if key is not set on the context props
+        """
+        if self.props.has_key(key):
+            return self.props[key]
+        else:
+            return default_val
+
+    def set_error(self, code, msg, data=None):
+        """
+        Set an error on this request, which will prevent request execution.
+        Should only be called from "pre" hook methods.  If called from a post hook, this
+        operation will be ignored.
+
+        :Parameters:
+          code
+            Integer error code
+          msg
+            String description of the error
+          data
+            Optional additional info about the error. Should be a primitive, or a list or
+            dict of primitives to avoid serialization issues.
+        """
+        self.error = err_response(self.request["id"], code, msg, data)
+
+class Filter(object):
+    """
+    Base filter class that implements pre and post functions, but no-ops for both.
+    Subclass this and override pre/post to add filter functionality for your app.
+    """
+    
+    def pre(self, context):
+        """
+        Pre-Handler hook.  Called before the RPC request handler is invoked.
+        If context.send_error is called by any pre filter, then the request handler will
+        not be invoked, and the error will be returned instead.
+
+        :Parameters:
+          context
+            RequestContext instance for this request
+        """
+        pass
+
+    def post(self, context):
+        """
+        Post-Handler hook.  Called after the RPC request handler is invoked.
+        Post handlers can inspect and log the response, but should not alter it.
+
+        :Parameters:
+          context
+            RequestContext instance for this request
+        """
+        pass
+
 class Server(object):
     """
     Dispatches requests to user created handler classes based on method name.
@@ -123,6 +217,7 @@ class Server(object):
         self.validate_resp = validate_response
         self.contract = contract
         self.handlers = { }
+        self.filters = None
 
     def add_handler(self, iface_name, handler):
         """
@@ -140,7 +235,21 @@ class Server(object):
         else:
             raise RpcException(ERR_INVALID_REQ, "Unknown interface: '%s'", iface_name)
 
-    def call_json(self, req_json):
+    def set_filters(self, filters):
+        """
+        Sets the filters for the server.
+
+        :Parameters:
+          filters
+            List of filters to set on this server, or None to remove all filters.
+            Elements in list should subclass Filter
+        """
+        if filters == None or isinstance(filters, (tuple, list)):
+            self.filters = filters
+        else:
+            self.filters = [ filters ]
+
+    def call_json(self, req_json, props=None):
         """
         Deserializes req_json as JSON, invokes self.call(), and serializes result to JSON.
         Returns JSON encoded string.
@@ -148,15 +257,18 @@ class Server(object):
         :Parameters:
           req_json
             JSON-RPC request serialized as JSON string
+          props
+            Application defined properties to set on RequestContext for use with filters. 
+            For example: authentication headers.  Must be a dict.
         """
         try:
             req = json.loads(req_json)
         except:
             msg = "Unable to parse JSON: %s" % req_json
-            return json.dumps(self._err(None, -32700, msg))
-        return json.dumps(self.call(req))
+            return json.dumps(err_response(None, -32700, msg))
+        return json.dumps(self.call(req, props))
 
-    def call(self, req):
+    def call(self, req, props=None):
         """
         Executes a Barrister request and returns a response.  If the request is a list, then the
         response will also be a list.  If the request is an empty list, a RpcException is raised.
@@ -164,6 +276,9 @@ class Server(object):
         :Parameters:
           req
             The request. Either a list of dicts, or a single dict.
+          props
+            Application defined properties to set on RequestContext for use with filters. 
+            For example: authentication headers.  Must be a dict.
         """
         resp = None
 
@@ -172,28 +287,19 @@ class Server(object):
 
         if isinstance(req, list):
             if len(req) < 1:
-                resp = self._err(None, ERR_INVALID_REQ, "Invalid Request. Empty batch.")
+                resp = err_response(None, ERR_INVALID_REQ, "Invalid Request. Empty batch.")
             else:
                 resp = [ ]
                 for r in req:
-                    resp.append(self._call_and_format(r))
+                    resp.append(self._call_and_format(r, props))
         else:
-            resp = self._call_and_format(req)
+            resp = self._call_and_format(req, props)
 
         if self.log.isEnabledFor(logging.DEBUG):
             self.log.debug("Response: %s" % str(resp))
         return resp
-
-    def _err(self, reqid, code, msg, data=None):
-        """
-        Formats a JSON-RPC error as a dict with keys: 'jsonrpc', 'id', 'error'
-        """
-        err = { "code": code, "message": msg }
-        if data:
-            err["data"] = data
-        return { "jsonrpc": "2.0", "id": reqid, "error": err }
     
-    def _call_and_format(self, req):
+    def _call_and_format(self, req, props=None):
         """
         Invokes a single request against a handler using _call() and traps any errors,
         formatting them using _err().  If the request is successful it is wrapped in a 
@@ -202,26 +308,47 @@ class Server(object):
         :Parameters:
           req
             A single dict representing a single JSON-RPC request
+          props
+            Application defined properties to set on RequestContext for use with filters. 
+            For example: authentication headers.  Must be a dict.
         """
         if not isinstance(req, dict):
-            return self._err(None, ERR_INVALID_REQ, 
+            return err_response(None, ERR_INVALID_REQ, 
                              "Invalid Request. %s is not an object." % str(req))
 
         reqid = None
         if req.has_key("id"):
             reqid = req["id"]
 
+        if props == None:
+            props = { }
+        context = RequestContext(props, req)
+
+        if self.filters:
+            for f in self.filters:
+                f.pre(context)
+
+        if context.error:
+            return context.error
+
+        resp = None
         try:
-            resp = self._call(req)
-            return { "jsonrpc": "2.0", "id": reqid, "result": resp }
+            result = self._call(context)
+            resp = { "jsonrpc": "2.0", "id": reqid, "result": result }
         except RpcException as e:
-            return self._err(reqid, e.code, e.msg, e.data)
+            resp = err_response(reqid, e.code, e.msg, e.data)
         except:
             self.log.exception("Error processing request: %s" % str(req))
-            return self._err(reqid, ERR_UNKNOWN, "Server error. Check logs for details.")
+            resp = err_response(reqid, ERR_UNKNOWN, "Server error. Check logs for details.")
         
+        if self.filters:
+            context.response = resp
+            for f in self.filters:
+                f.post(context)
 
-    def _call(self, req):
+        return resp
+
+    def _call(self, context):
         """
         Executes a single request against a handler.  If the req.method == 'barrister-idl', the
         Contract IDL JSON structure is returned.  Otherwise the method is resolved to a handler
@@ -231,6 +358,7 @@ class Server(object):
           req
             A dict representing a valid JSON-RPC 2.0 request.  'method' must be provided.
         """
+        req = context.request
         if not req.has_key("method"):
             raise RpcException(ERR_INVALID_REQ, "Invalid Request. No 'method'.")
 
@@ -252,6 +380,10 @@ class Server(object):
 
                 if self.validate_req:
                     self.contract.validate_request(iface_name, func_name, params)
+
+                if hasattr(iface_impl, "barrister_pre"):
+                    pre_hook = getattr(iface_impl, "barrister_pre")
+                    pre_hook(context, params)
 
                 if params:
                     result = func(*params)
@@ -918,11 +1050,27 @@ class Struct(object):
             else:
                 return False, "field '%s' not found in struct %s" % (k, self.name)
 
-        for k, v in self.fields.items():
-            if not val.has_key(k) and not v.optional:
-                return False, "field '%s' missing from: %s" % (k, str(val))
+        all_fields = self.get_all_fields([])
+        for field in all_fields:
+            if not val.has_key(field.name) and not field.optional:
+                return False, "field '%s' missing from: %s" % (field.name, str(val))
 
         return True, None
+
+    def get_all_fields(self, arr):
+        """
+        Returns a list containing this struct's fields and all the fields of
+        its ancestors.  Used during validation.
+        """
+        for k, v in self.fields.items():
+            arr.append(v)
+            
+        if self.extends:
+            parent = self.contract.get(self.extends)
+            if parent:
+                return parent.get_all_fields(arr)
+
+        return arr
 
 class Function(object):
     """
