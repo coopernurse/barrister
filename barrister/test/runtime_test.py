@@ -107,7 +107,7 @@ class UserServiceImpl(object):
         return resp
 
     def getAll(self, userIds):
-        return { "users": [] }
+        return { "status": "ok", "message" : "users here", "users": [] }
 
     def _resp(self, status, message):
         return { "status" : status, "message" : message }
