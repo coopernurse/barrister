@@ -11,7 +11,7 @@
     :copyright: 2012 by James Cooper.
     :license: MIT, see LICENSE for more details.
 """
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 from .runtime import contract_from_file, idgen_uuid, idgen_seq
 from .runtime import RpcException, Server, Filter, HttpTransport, InProcTransport
