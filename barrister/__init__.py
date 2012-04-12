@@ -15,6 +15,6 @@ __version__ = '0.1.0'
 
 from .runtime import contract_from_file, idgen_uuid, idgen_seq
 from .runtime import RpcException, Server, Filter, HttpTransport, InProcTransport
-from .runtime import Client, Batch, BatchResult
+from .runtime import Client, Batch
 from .runtime import Contract, Interface, Enum, Struct, Function
 from .docco import docco_html

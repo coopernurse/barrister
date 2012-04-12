@@ -19,19 +19,14 @@ batch    = None
 f   = open(sys.argv[1])
 out = codecs.open(sys.argv[2], "w", "utf-8")
 
-def get_and_log_result(iface, func, params, c):
+def get_and_log_result(iface, func, params, result, error):
     status = "ok"
-
-    try:
-        resp = c()
-    except barrister.RpcException as e:
+    resp   = result
+    
+    if error != None:
         status = "rpcerr"
-        resp = e.code
-        print "RPCERR: %s" % e.msg
-    except:
-        print "ERR: %s" % str(sys.exc_info())
-        status = "err"
-        resp = ""
+        resp = error.code
+        print "RPCERR: %s" % error.msg
 
     out.write("%s|%s|%s|%s|%s\n" % (iface, func, params, status, json.dumps(resp)))
     out.flush()
@@ -49,13 +44,13 @@ for line in lines:
         continue
     elif line == 'end_batch':
         results = batch.send()
-        for i in range(results.count):
-            c = lambda: results.get(i)
-            req = batch.req_list[i]
+        for i in range(0, len(results)):
+            res = results[i]
+            req = res.request
             pos = req["method"].find(".")
             iface = req["method"][:pos]
             func  = req["method"][pos+1:]
-            get_and_log_result(iface, func, json.dumps(req["params"]), c)
+            get_and_log_result(iface, func, json.dumps(req["params"]), res.result, res.error)
         batch = None
         continue
 
@@ -76,7 +71,15 @@ for line in lines:
     if batch:
         c()
     else:
-        get_and_log_result(iface, func, params, c)
+        result = None
+        error  = None
+        try:
+            result = c()
+        except barrister.RpcException as e:
+            error = e
+        except e:
+            error = barrister.RpcException(-1, str(sys.exc_info()))
+        get_and_log_result(iface, func, params, result, error)
 
     line = f.readline()
 

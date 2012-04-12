@@ -91,7 +91,8 @@ class ConformTest(unittest.TestCase):
         self._test_server(1, "python-flask", cmd)
 
     def test_java_server(self):
-        cmd = ["java", "-DidlJson=conform.json", "-jar", winstone_jar, 
+        cmd = ["java", "-DidlJson=conform.json", 
+               "-jar", winstone_jar, 
                "--httpPort=9233", "--ajp13Port=-1", java_war ]
         self._test_server(3, "java", cmd)
 

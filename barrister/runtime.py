@@ -78,6 +78,19 @@ def err_response(reqid, code, msg, data=None):
         err["data"] = data
     return { "jsonrpc": "2.0", "id": reqid, "error": err }
 
+def safe_get(d, key, def_val=None):
+    """
+    Helper function to fetch value from a dictionary
+    
+    * `d` - Dictionary to fetch value from
+    * `key` - Key to lookup in dictionary
+    * `def_val` - Default value to return if dict does not have a member with key
+    """
+    if d.has_key(key):
+        return d[key]
+    else:
+        return def_val
+
 class RpcException(Exception, json.JSONEncoder):
     """
     Represents a JSON-RPC style exception.  Server implementations should raise this
@@ -97,7 +110,7 @@ class RpcException(Exception, json.JSONEncoder):
             Optional extra info about the error. Should be a string, int, or list or dict of strings/ints
         """
         self.code = code
-        self.msg = msg
+        self.msg  = msg
         self.data = data
 
     def __str__(self):
@@ -681,80 +694,58 @@ class Batch(object):
 
     def send(self):
         """
-        Sends the batch request to the server and returns a BatchResult instance.
-        Raises a RpcException if the batch has already been sent.
+        Sends the batch request to the server and returns a list of RpcResponse
+        objects.  The list will be in the order that the requests were made to
+        the batch.  Note that the RpcResponse objects may contain an error or a 
+        successful result.  When you iterate through the list, you must test for
+        response.error.
+        
+        send() may not be called more than once.
         """
         if self.sent:
             raise Exception("Batch already sent. Cannot send() again.")
         else:
-            resp = self.client.transport.request(self.req_list)
             self.sent = True
-            return BatchResult(self, self.req_list, resp)
+            results = self.client.transport.request(self.req_list)
+            
+            id_to_method = { }
+            by_id = { }
+            for res in results:
+                reqid = res["id"]
+                by_id[reqid] = res
 
-class BatchResult(object):
+            in_req_order = [ ]
+            for req in self.req_list:
+                reqid  = req["id"]
+                result = None
+                error  = None
+                resp   = safe_get(by_id, reqid)
+                if resp == None:
+                    msg = "Batch response missing result for request id: %s" % reqid
+                    error = RpcException(ERR_INVALID_RESP, msg)
+                else:
+                    r_err = safe_get(resp, "error")
+                    if r_err == None:
+                        result = resp["result"]
+                    else:
+                        error = RpcException(r_err["code"], r_err["message"], safe_get(r_err, "data"))
+                in_req_order.append(RpcResponse(req, result, error))
+            return in_req_order
+                
+
+class RpcResponse(object):
     """
-    Holds the results from a Batch.send() call.  Individual results are unmarshaled during each
-    call to get()
+    Represents a single response in a batch call.  Has the following properties:
+    
+    * `request` - JSON-RPC request dict
+    * `result`  - Result from this call. Set to None if there was an error.
+    * `error`   - RpcException instance.  Set to None if call was successful.
     """
-
-    def __init__(self, batch, req_list, resp):
-        """
-        Creates a new BatchResult, automatically reordering to the response to match the order of
-        the requests.
-
-        Raises RpcException if the resp length does not match the req_list length, or if any
-        element in resp cannot be correlated to req_list based on id.
-
-        Use the "count" property on the BatchResult instance to get the length of the response.
-
-        :Parameters:
-          batch
-            Batch instance associated with this result
-          req_list
-            List of requests that were sent in this batch in (list of dicts in JSON-RPC request format)
-          resp
-            List of results from the server (lists of dicts in JSON-RPC response format)
-        """
-        if len(req_list) != len(resp):
-            msg = "Batch response length %d != request %d" % (len(resp), len(req_list))
-            raise RpcException(ERR_INVALID_RESP, msg)
-
-        self.id_to_method = { }
-        by_id = { }
-        for r in resp:
-            reqid = r["id"]
-            by_id[reqid] = r
-
-        in_req_order = [ ]
-        for r in req_list:
-            reqid = r["id"]
-            if not by_id.has_key(reqid):
-                msg = "Batch response missing result for request id: %s" % reqid
-                raise RpcException(ERR_INVALID_RESP, msg)
-            in_req_order.append(by_id[reqid])
-            self.id_to_method[reqid] = r["method"]
-
-        self.batch = batch
-        self.resp = in_req_order
-        self.count = len(in_req_order)
-
-    def get(self, i):
-        """
-        Returns a single response from the BatchResult based on offset.  If the offset is out of range
-        an IndexError is raised.  If the response contained an error, a RpcException is raised with the
-        error information for that response.
-
-        :Parameters:
-          i 
-            Offset into the result, zero based.
-        """
-        if i < self.count:
-            resp = self.resp[i]
-            method = self.id_to_method[resp["id"]]
-            iface_name, func_name = unpack_method(method)
-            return self.batch.client.to_result(iface_name, func_name, resp)
-        else:
-            raise IndexError("%d >= result size: %d" % (i, self.count))
+    
+    def __init__(self, request, result, error):
+        self.request = request
+        self.result  = result
+        self.error   = error
 
 class Contract(object):
     """
