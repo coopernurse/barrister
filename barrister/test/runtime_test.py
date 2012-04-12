@@ -192,11 +192,11 @@ class RuntimeTest(unittest.TestCase):
         batch.UserService.create(newUser(userId="1", email="foo@bar.com"))
         batch.UserService.create(newUser(userId="2", email="foo@bar.com"))
         batch.UserService.countUsers()
-        result = batch.send()
-        self.assertEquals(3, result.count)
-        self.assertEquals(result.get(0)["message"], "user created")
-        self.assertEquals(result.get(1)["message"], "user created")
-        self.assertEquals(2, result.get(2)["count"])
+        results = batch.send()
+        self.assertEquals(3, len(results))
+        self.assertEquals(results[0].result["message"], "user created")
+        self.assertEquals(results[1].result["message"], "user created")
+        self.assertEquals(2, results[2].result["count"])
 
     def _test_bench(self):
         start = time.time()
