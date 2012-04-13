@@ -534,6 +534,12 @@ class Client(object):
         for k, v in self.contract.interfaces.items():
             setattr(self, k, InterfaceClientProxy(self, v))
 
+    def get_meta(self):
+        """
+        Returns the dict of metadata from the Contract
+        """
+        return self.contract.meta
+
     def call(self, iface_name, func_name, params):
         """
         Makes a single RPC request and returns the result.
@@ -764,6 +770,7 @@ class Contract(object):
         self.interfaces = { }
         self.structs = { }
         self.enums = { }
+        self.meta = { }
         for e in idl_parsed:
             if e["type"] == "struct":
                 self.structs[e["name"]] = Struct(e, self)
@@ -771,6 +778,10 @@ class Contract(object):
                 self.enums[e["name"]] = Enum(e)
             elif e["type"] == "interface":
                 self.interfaces[e["name"]] = Interface(e, self)
+            elif e["type"] == "meta":
+                for k,v in e.items():
+                    if k != "type":
+                        self.meta[k] = v
 
     def validate_request(self, iface_name, func_name, params):
         """
