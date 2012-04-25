@@ -16,7 +16,7 @@ from distutils.core import setup
 
 setup(
     name='barrister',
-    version='0.1.1',
+    version='0.1.1b',
     url='https://github.com/coopernurse/barrister',
     scripts=['bin/barrister'],
     packages=['barrister',],

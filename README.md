@@ -51,4 +51,16 @@ Python 2.3 and 2.4 users will need to:
 
 Distributed under the MIT license.  See LICENSE file for details.
 
+## Release / Tag notes
 
+Note to self on how to tag release
+
+    # Edit `setup.py`, bump version, then run:
+    
+    git add -u
+    git commit -m "bump v0.1.0"
+    git tag -a v0.1.0 -m "version 0.1.0"
+    git push --tags
+    git push
+    python setup.py sdist upload
+    
