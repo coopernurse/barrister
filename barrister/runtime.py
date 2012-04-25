@@ -451,7 +451,7 @@ class HttpTransport(object):
         """
         data = json.dumps(req)
         req = urllib2.Request(self.url, data, self.headers)
-        f = urllib2.urlopen(req)
+        f = self.opener.open(req)
         resp = f.read()
         f.close()
         return json.loads(resp)
