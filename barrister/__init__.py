@@ -11,10 +11,10 @@
     :copyright: 2012 by James Cooper.
     :license: MIT, see LICENSE for more details.
 """
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 
-from .runtime import contract_from_file, idgen_uuid, idgen_seq
-from .runtime import RpcException, Server, Filter, HttpTransport, InProcTransport
-from .runtime import Client, Batch
-from .runtime import Contract, Interface, Enum, Struct, Function
-from .docco import docco_html
+from barrister.runtime import contract_from_file, idgen_uuid, idgen_seq
+from barrister.runtime import RpcException, Server, Filter, HttpTransport, InProcTransport
+from barrister.runtime import Client, Batch
+from barrister.runtime import Contract, Interface, Enum, Struct, Function
+from barrister.docco import docco_html

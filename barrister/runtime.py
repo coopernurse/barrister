@@ -348,7 +348,7 @@ class Server(object):
         try:
             result = self._call(context)
             resp = { "jsonrpc": "2.0", "id": reqid, "result": result }
-        except RpcException as e:
+        except RpcException, e:
             resp = err_response(reqid, e.code, e.msg, e.data)
         except:
             self.log.exception("Error processing request: %s" % str(req))

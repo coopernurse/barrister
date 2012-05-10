@@ -55,7 +55,7 @@ Distributed under the MIT license.  See LICENSE file for details.
 
 Note to self on how to tag release
 
-    # Edit `setup.py`, bump version, then run:
+    # Edit `setup.py` and `__init__.py`, bump version, then run:
     
     git add -u
     git commit -m "bump v0.1.0"
