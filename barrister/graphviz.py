@@ -89,8 +89,5 @@ def to_dotfile(parsed_idl):
             
 
     dot += "}\n"
-    
-    print dot
-
     return dot
 
