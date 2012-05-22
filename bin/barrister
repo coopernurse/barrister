@@ -1,14 +1,29 @@
 #!/usr/bin/env python
 
 from barrister.parser import parse
-from barrister import docco_html
+from barrister import docco_html, to_dotfile
 import optparse
 import sys
+import tempfile
+import subprocess
+import os
 try:
     import json
 except:
     import simplejson as json
-    
+
+def wrap_exec(name, cmd):
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
+                            close_fds=False, shell=False)
+    out, err = proc.communicate()
+    for line in out.split("\n"):
+        if line:
+            print "[%s out] %s" % (name, line)
+    for line in err.split("\n"):
+        if line:
+            print "[%s err] %s" % (name, line)
+    return proc.poll()
+
 if __name__ == "__main__":
     parser = optparse.OptionParser("usage: %prog [options] [idl filename]")
     parser.add_option("-i", "--stdin", dest="stdin", action="store_true",
@@ -16,6 +31,12 @@ if __name__ == "__main__":
     parser.add_option("-d", "--docco", dest="docco",
                       default=None, type="string",
                       help="Generate docco HTML and save to this filename")
+    parser.add_option("-p", "--png", dest="diagram",
+                      default=None, type="string",
+                      help="Generate PNG diagram and save to this filename")
+    parser.add_option("-z", "--graphviz", dest="dotargs",
+                      default="-Grankdir=BT -Glayout=twopi -Goverlap=false -Granksep=2.25", type="string",
+                      help="Extra args to pass to graphviz 'dot' command (-p required)")
     parser.add_option("-t", "--title", dest="title",
                       default=None, type="string",
                       help="title to use in generated HTML")
@@ -40,6 +61,22 @@ if __name__ == "__main__":
         f = open(options.docco, "w")
         f.write(docco_html(title, parsed))
         f.close()
+
+    if options.diagram:
+        (fd, fname) = tempfile.mkstemp()
+        f = os.fdopen(fd, "w")
+        f.write(to_dotfile(parsed))
+        f.close()
+        cmd = ["dot", "-T", "png", "-o", options.diagram]
+        if options.dotargs:
+            cmd.extend(options.dotargs.split(" "))
+        cmd.append(fname)
+        if wrap_exec("graphviz", cmd) != 0:
+            print "Error running Graphviz dot. Is it installed?"
+            print "Command: %s" % str(cmd)
+            os.unlink(fname)
+            sys.exit(1)
+        os.unlink(fname)
 
     if options.json:
         f = open(options.json, "w")

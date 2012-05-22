@@ -18,3 +18,4 @@ from barrister.runtime import RpcException, Server, Filter, HttpTransport, InPro
 from barrister.runtime import Client, Batch
 from barrister.runtime import Contract, Interface, Enum, Struct, Function
 from barrister.docco import docco_html
+from barrister.graphviz import to_dotfile
