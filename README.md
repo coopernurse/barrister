@@ -38,6 +38,20 @@ If you're using Python 2.6 or later, you're good to go.  Python 2.5 users will n
 Python 2.3 and 2.4 users will need to:
 
     pip install uuid simplejson
+    
+### Graphviz diagrams
+
+As of 0.1.3 barrister can optionally generate UML-ish diagrams using Graphviz.
+To generate a diagram, use the `-p` and optionally `-z` flags to barrister.
+
+The Graphviz `dot` program must be installed and in your PATH.  See the
+[Graphviz site](http://www.graphviz.org/) for installation details.  Most Linux distros can install
+Graphviz via a package manager (apt, yum, pacman, etc).  Mac users can install
+Graphviz with [homebrew](http://mxcl.github.com/homebrew/).
+
+If you'd like the diagram embedded in the generated HTML doc, place the token:
+`[[diagram]]` in your IDL file where you'd like the diagram to appear.  This
+string will be replaced with a HTML `<img>` tag pointing to the diagram.
 
 ## Documentation
 
