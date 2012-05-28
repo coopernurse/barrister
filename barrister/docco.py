@@ -227,13 +227,13 @@ def format_type(t):
         s += " [optional]"
     return s
 
-def docco_html(title, idl_parsed):
+def docco_html(title, idl_parsed, diagram_fname=None):
     """
     Translates a parsed Barrister IDL into HTML.  Returns a string containing the HTML.
 
     :Parameters:
       title
-        Title of the document. Will be includined in <title> and <h1> tags
+        Title of the document. Will be included in <title> and <h1> tags
       idl_parsed
         Parsed representation of IDL to convert to HTML
     """
@@ -284,6 +284,9 @@ def docco_html(title, idl_parsed):
   </div>
 </body>
 </html>"""
+    if diagram_fname:
+        diagram_link = """<a href="%s"><img src="%s" height="120" width="120" border="0" /></a>""" % (diagram_fname, diagram_fname)
+        s = s.replace("[[diagram]]", diagram_link)
     return s
     
 def parse_enum(enum):
