@@ -13,6 +13,12 @@
     :license: MIT, see LICENSE for more details.
 """
 
+def type_str(type_dict):
+    s = type_dict['type']
+    if type_dict.has_key('is_array') and type_dict['is_array']:
+        s = s + "[]"
+    return s
+
 def struct_dot(struct):
     extends = ""
     if struct.has_key("extends") and struct["extends"]:
@@ -20,7 +26,7 @@ def struct_dot(struct):
         
     label = "%s|" % struct["name"]
     for f in struct["fields"]:
-        label += "+ %s : %s\\l" % (f["name"],  f["type"])
+        label += "+ %s : %s\\l" % (f["name"],  type_str(f))
     return """%s [
         fillcolor = "#f0fff0"
         style = filled
@@ -47,8 +53,8 @@ def interface_dot(iface):
         prms = ""
         for p in f["params"]:
             if prms: prms += ", "
-            prms += "%s" % p["type"]
-        label += "+ %s(%s) : %s\\l" % (f["name"], prms,f["returns"]["type"])
+            prms += "%s" % type_str(p)
+        label += "+ %s(%s) : %s\\l" % (f["name"], prms, type_str(f["returns"]))
     return """%s [
             fillcolor = "#fafad2"
             style = filled
