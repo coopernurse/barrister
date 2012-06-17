@@ -4,7 +4,7 @@ Barrister lets you write well documented services that can be consumed from a va
 The basic steps are:
 
 * Write an IDL file (See: http://barrister.bitmechanic.com/docs.html)
-* Run the `barrister` tool to convert the IDL file to JSON and HTML files
+* Run the `barrister` tool to convert the IDL file to JSON and HTML files (or use the hosted translator -- see below)
 * Install the language binding for the lanuage you're writing the server in 
   (See: http://barrister.bitmechanic.com/download.html)
 * Write a server that implements the interfaces in the IDL
@@ -12,6 +12,16 @@ The basic steps are:
 This project contains the core `barrister` command line tool as well as the Python bindings.
 
 ## Installation
+
+### Hosted Translator
+
+If you are working in a language other than Python and don't wish to install the barrister Python
+package, you can use the hosted translator to convert your IDL to its JSON representation.  For example:
+
+    curl --data-binary @foo.idl http://barrister.bitmechanic.com/run > foo.json
+
+This would upload `foo.idl` and save the output as `foo.json`.  Currently the hosted error output is fairly
+minimal, but if you get valid JSON back on the response then you should be set.
 
 ### Install
 
