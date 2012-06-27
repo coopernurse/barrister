@@ -18,7 +18,7 @@ This project contains the core `barrister` command line tool as well as the Pyth
 If you are working in a language other than Python and don't wish to install the barrister Python
 package, you can use the hosted translator to convert your IDL to its JSON representation.  For example:
 
-    curl --data-binary @foo.idl http://barrister.bitmechanic.com/run > foo.json
+    curl --data-urlencode idl@foo.idl http://barrister.bitmechanic.com/run > foo.json
 
 This would upload `foo.idl` and save the output as `foo.json`.  Currently the hosted error output is fairly
 minimal, but if you get valid JSON back on the response then you should be set.
