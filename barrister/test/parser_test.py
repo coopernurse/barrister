@@ -292,6 +292,17 @@ struct Blarg extends Foo {
                          { "line": 5, "message" : "undefined type: Saying" },
                          { "line": 7, "message" : "Blarg extends unknown type Foo" } ]
             self.assertEquals(expected, e.errors)
+            
+    def test_ident_can_start_with_underscores(self):
+        idl = """struct Animal { 
+    _id int
+    _name string
+}"""
+        expected = [ { "name" : "Animal", "type" : "struct", 
+                       "extends" : "", "comment" : "",
+                       "fields" : [ field("_id", "int"), 
+                                    field("_name", "string") ] } ]
+        self.assertEquals(expected, parse(idl, add_meta=False))
 
     def test_cant_override_parent_field(self):
         idl = """struct Animal {
