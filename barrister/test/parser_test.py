@@ -231,8 +231,22 @@ struct Location {
             parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
-            expected = [ { "line": 0, "message" : "cycle detected in: struct Animal" },
-                         { "line": 0, "message" : "cycle detected in: struct Location" } ]
+            expected = [ { "line": 3, "message" : "cycle detected in struct: Animal" },
+                         { "line": 6, "message" : "cycle detected in struct: Location" } ]
+            self.assertEquals(expected, e.errors)
+            
+    def test_no_cycles_extends(self):
+        idl = """struct Animal extends Location {
+    home int
+}
+struct Location {
+    residents []Animal
+}"""
+        try:
+            parse(idl, add_meta=False)
+            self.fail("should have thrown exception")
+        except IdlParseException as e:
+            expected = [ { "line": 3, "message" : "cycle detected in struct: Animal" } ]
             self.assertEquals(expected, e.errors)
 
     def test_cycle_detection(self):
@@ -256,7 +270,7 @@ interface FooService {
             parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
-            expected = [ { "line": 0, "message" : "interface FooService cannot be a field type" } ]
+            expected = [ { "line": 2, "message" : "interface FooService cannot be used as a type" } ]
             self.assertEquals(expected, e.errors)        
 
     def test_types_exist(self):
@@ -273,10 +287,10 @@ struct Blarg extends Foo {
             parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
-            expected = [ { "line": 0, "message" : "undefined type: Color" },
-                         { "line": 0, "message" : "undefined type: Cat" },
-                         { "line": 0, "message" : "undefined type: Saying" },
-                         { "line": 0, "message" : "undefined type: Foo" } ]
+            expected = [ { "line": 2, "message" : "undefined type: Color" },
+                         { "line": 5, "message" : "undefined type: Cat" },
+                         { "line": 5, "message" : "undefined type: Saying" },
+                         { "line": 7, "message" : "Blarg extends unknown type Foo" } ]
             self.assertEquals(expected, e.errors)
 
     def test_cant_override_parent_field(self):
@@ -294,8 +308,8 @@ struct Manx extends Cat {
             parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
-            expected = [ { "line": 0, "message" : "Cat cannot redefine parent field color" },
-                         { "line": 0, "message" : "Manx cannot redefine parent field gender" } ]
+            expected = [ { "line": 6, "message" : "Cat cannot redefine parent field color" },
+                         { "line": 9, "message" : "Manx cannot redefine parent field gender" } ]
             self.assertEquals(expected, e.errors)
 
     def test_struct_cant_extend_enum(self):
@@ -307,7 +321,7 @@ struct Animal extends Status {
             parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
-            expected = [ { "line": 0, "message" : "Animal cannot extend enum Status" } ]
+            expected = [ { "line": 2, "message" : "Animal cannot extend enum Status" } ]
             self.assertEquals(expected, e.errors)        
 
     def test_struct_cant_extend_native_type(self):
@@ -318,7 +332,7 @@ struct Animal extends Status {
             parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
-            expected = [ { "line": 0, "message" : "Animal cannot extend float" } ]
+            expected = [ { "line": 1, "message" : "Animal cannot extend float" } ]
             self.assertEquals(expected, e.errors)        
 
     def test_struct_must_have_fields(self):
@@ -371,8 +385,8 @@ interface FooService {
             parse(idl, add_meta=False)
             self.fail("should have thrown exception")
         except IdlParseException as e:
-            expected = [ { "line": 0, "message" : "interface BlargService cannot be a field type" },
-                         { "line": 0, "message" : "interface BlargService cannot be a field type" } ]
+            expected = [ { "line": 5, "message" : "interface BlargService cannot be used as a type" },
+                         { "line": 6, "message" : "interface BlargService cannot be used as a type" } ]
             self.assertEquals(expected, e.errors)        
 
     def test_optional_struct_field(self):

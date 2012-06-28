@@ -11,7 +11,8 @@ import time
 import copy
 import operator
 import cStringIO
-from plex import Scanner, Lexicon, Str, State, IGNORE, Begin, Any, AnyBut, AnyChar, Range, Rep
+from plex import Scanner, Lexicon, Str, State, IGNORE
+from plex import Begin, Any, AnyBut, AnyChar, Range, Rep
 try:
     import json
 except:
@@ -36,13 +37,17 @@ comment      = Str("// ") | Str("//")
 type_opts    = Str("[") + Rep(AnyBut("{}]\n")) + Str("]")
 
 def parse(idl_text, name=None, validate=True, add_meta=True):
-    if isinstance(idl_text, (str, unicode)):
-        idl_text = cStringIO.StringIO(idl_text)
+    if not isinstance(idl_text, (str, unicode)):
+        idl_text = idl_text.read()
 
     scanner = IdlScanner(idl_text, name)
     scanner.parse()
+    
     if validate:
-        scanner.validate()
+        scanner2 = IdlScanner(idl_text, name)
+        scanner2.parse(scanner)
+        scanner = scanner2
+        
     if len(scanner.errors) == 0:
         if add_meta:
             scanner.add_meta()
@@ -65,6 +70,25 @@ class IdlParseException(Exception):
         return s
 
 class IdlScanner(Scanner):
+    
+    def __init__(self, idl_text, name):
+        f = cStringIO.StringIO(idl_text)
+        Scanner.__init__(self, self.lex, f, name)
+        self.parsed = [ ]
+        self.errors = [ ]
+        self.types = { }
+        self.comment = None
+        self.cur = None
+
+    def parse(self, firstPass=None):
+        self.firstPass = firstPass
+        while True:
+            (t, name) = self.read()
+            if t is None:
+                break
+            else:
+                self.add_error(t)
+                break
 
     def eof(self):
         if self.cur:
@@ -82,8 +106,9 @@ class IdlScanner(Scanner):
 
     def get_checksum(self):
         """
-        Returns a checksum based on the IDL that ignores comments and ordering,
-        but detects changes to types, parameter order, and enum values.
+        Returns a checksum based on the IDL that ignores comments and 
+        ordering, but detects changes to types, parameter order, 
+        and enum values.
         """
         arr = [ ]
         for elem in self.parsed:
@@ -92,8 +117,10 @@ class IdlScanner(Scanner):
                 fields = copy.copy(elem["fields"])
                 fields.sort(key=operator.itemgetter("name"))
                 for f in fields:
-                    s += "\t%s\t%s\t%s\t%s" % (f["name"], f["type"], f["is_array"], f["optional"])
-                arr.append("struct\t%s\t%s\t%s\n" % (elem["name"], elem["extends"], s))
+                    fs = (f["name"], f["type"], f["is_array"], f["optional"])
+                    s += "\t%s\t%s\t%s\t%s" % fs
+                fs = (elem["name"], elem["extends"], s)
+                arr.append("struct\t%s\t%s\t%s\n" % fs)
             elif elem["type"] == "enum":
                 s = "enum\t%s" % elem["name"]
                 vals = copy.copy(elem["values"])
@@ -110,17 +137,120 @@ class IdlScanner(Scanner):
                     for p in f["params"]:
                         s += "\t%s\t%s" % (p["type"], p["is_array"])
                     ret = f["returns"]
-                    s += "(%s\t%s\t%s)]" % (ret["type"], ret["is_array"], ret["optional"])
+                    fs = (ret["type"], ret["is_array"], ret["optional"])
+                    s += "(%s\t%s\t%s)]" % fs
                 s += "\n"
                 arr.append(s)
         arr.sort()
         #print arr
         return md5(json.dumps(arr))
+        
+    #####################################################
+        
+    def validate_type_vs_first_pass(self, type_str):
+        if self.firstPass:
+            self.add_error(self.firstPass.validate_type(type_str, [], 0))
+
+    def validate_type(self, cur_type, types, level):
+        level += 1
+
+        cur_type = self.strip_array_chars(cur_type)
+
+        if cur_type in native_types or cur_type in types:
+            pass
+        elif not self.types.has_key(cur_type):
+            return "undefined type: %s" % cur_type
+        else:
+            cur = self.types[cur_type]
+            types.append(cur_type)
+            if cur["type"] == "struct":
+                if cur["extends"] != "":
+                    self.validate_type(cur["extends"], types, level)
+                for f in cur["fields"]:
+                    self.validate_type(f["type"], types, level)
+            elif cur["type"] == "interface":
+                # interface types must be top-level, so if len(types) > 1, we
+                # know this interface was used as a type in a function 
+                # or struct
+                return "interface %s cannot be used as a type" % cur["name"]
+                if level > 1:
+                    return "interface %s cannot be a field type" % cur["name"]
+                else:
+                    for f in cur["functions"]:
+                        types = [ ]
+                        for p in f["params"]:
+                            self.validate_type(p["type"], types, 1)
+                        self.validate_type(f["returns"]["type"], types, 1)
+
+    def validate_struct_extends(self, s):
+        if self.firstPass:
+            name    = s["name"]
+            extends = s["extends"]
+             
+            if extends in native_types:
+                self.add_error("%s cannot extend %s" % (name, extends))
+            elif self.firstPass.types.has_key(extends):
+                ext_type = self.firstPass.types[extends]
+                if ext_type["type"] != "struct":
+                    fs = (name, ext_type["type"], extends)
+                    self.add_error("%s cannot extend %s %s" % fs)
+            else:
+                self.add_error("%s extends unknown type %s" % (name, extends))
+                    
+    def validate_struct_field(self, s):
+        if self.firstPass:
+            names = self.get_parent_fields(s, [], [])
+            for f in s["fields"]:
+                if f["name"] in names:
+                    errf = (s["name"], f["name"])
+                    err  = "%s cannot redefine parent field %s" % errf
+                    self.add_error(err)
+                    
+    def validate_struct_cycles(self, s):
+        if self.firstPass:
+            all_types = self.firstPass.get_struct_field_types(s, [])
+            if s["name"] in all_types:
+                self.add_error("cycle detected in struct: %s" % s["name"])
+                    
+    def get_parent_fields(self, s, names, types):
+        if self.types.has_key(s["extends"]):
+            if s["name"] not in types:
+                types.append(s["name"])
+                parent = self.types[s["extends"]]
+                if parent["type"] == "struct":
+                    for f in parent["fields"]:
+                        if f["name"] not in names:
+                            names.append(f["name"])
+                    self.get_parent_fields(parent, names, types)
+        return names
+        
+    def get_struct_field_types(self, struct, types):
+        for f in struct["fields"]:
+            type_name = self.strip_array_chars(f["type"])
+            if self.types.has_key(type_name) and not type_name in types:
+                types.append(type_name)
+                t = self.types[type_name]
+                if t["type"] == "struct":
+                    self.get_struct_field_types(t, types)
+        if struct["extends"] != "":
+            if self.types.has_key(struct["extends"]):
+                t = self.types[struct["extends"]]
+                if t["type"] == "struct":
+                    self.get_struct_field_types(t, types)
+        return types
+
+    def strip_array_chars(self, name):
+        if name.find("[]") == 0:
+            return name[2:]
+        return name
 
     def add_error(self, message, line=-1):
+        if not message: return
         if line < 0:
             (name, line, col) = self.position()
         self.errors.append({"line": line, "message": message})
+        
+    #####################################################
 
     def begin_struct(self, text):
         self.check_dupe_name(text)
@@ -146,7 +276,8 @@ class IdlScanner(Scanner):
 
     def check_not_empty(self, cur, list_name, printable_name):
         if len(cur[list_name]) == 0:
-            self.add_error("%s must have at least one %s" % (cur["name"], printable_name))
+            flist = (cur["name"], printable_name)
+            self.add_error("%s must have at least one %s" % flist)
             return False
         return True
 
@@ -160,12 +291,14 @@ class IdlScanner(Scanner):
             self.begin("functions")
         else:
             raise Exception("Invalid type: %s" % t)
+        #self.validate_type_vs_first_pass(self.cur["name"])
 
     def end_block(self, text):
         ok = False
         t = self.cur["type"]
         if t == "struct":
             ok = self.check_not_empty(self.cur, "fields", "field")
+            self.validate_struct_cycles(self.cur)
         elif t == "enum":
             ok = self.check_not_empty(self.cur, "values", "value")
         elif t == "interface":
@@ -187,18 +320,23 @@ class IdlScanner(Scanner):
         if text.find("[]") == 0:
             text = text[2:]
             is_array = True
+        self.validate_type_vs_first_pass(text)
         self.field["type"] = text
         self.field["is_array"] = is_array
         self.field["comment"] = self.get_comment()
         self.field["optional"] = False
         self.type = self.field
         self.cur["fields"].append(self.field)
+        self.validate_struct_field(self.cur)
         self.field = None
         self.next_state = "fields"
         self.begin("type-opts")
 
     def begin_function(self, text):
-        self.function = { "name" : text, "comment" : self.get_comment(), "params" : [ ] }
+        self.function = { 
+               "name" : text, 
+            "comment" : self.get_comment(), 
+             "params" : [ ] }
         self.begin("function-start")
 
     def begin_param(self, text):
@@ -210,18 +348,23 @@ class IdlScanner(Scanner):
         if text.find("[]") == 0:
             text = text[2:]
             is_array = True
+        self.validate_type_vs_first_pass(text)
         self.param["type"] = text
         self.param["is_array"] = is_array
         self.function["params"].append(self.param)
         self.param = None
         self.begin("end-param")
-
+        
     def end_return(self, text):
         is_array = False
         if text.find("[]") == 0:
             text = text[2:]
             is_array = True
-        self.function["returns"] = { "type": text, "is_array": is_array, "optional": False }
+        self.validate_type_vs_first_pass(text)
+        self.function["returns"] = { 
+                "type" : text, 
+            "is_array" : is_array, 
+            "optional" : False }
         self.type = self.function["returns"]
         self.next_state = "functions"
         self.cur["functions"].append(self.function)
@@ -279,6 +422,7 @@ class IdlScanner(Scanner):
     def end_extends(self, text):
         if self.cur and self.cur["type"] == "struct":
             self.cur["extends"] = text
+            self.validate_struct_extends(self.cur)
         else:
             self.add_error("extends is only supported for struct types")
 
@@ -373,103 +517,3 @@ class IdlScanner(Scanner):
                     (AnyChar, append_comment) ])
             ])
 
-    def __init__(self, f, name):
-        Scanner.__init__(self, self.lex, f, name)
-        self.parsed = [ ]
-        self.errors = [ ]
-        self.types = { }
-        self.comment = None
-        self.cur = None
-
-    def parse(self):
-        while True:
-            (t, name) = self.read()
-            if t is None:
-                break
-            else:
-                self.add_error(t)
-                break
-
-    def validate_type(self, cur_type, types, level):
-        level += 1
-
-        cur_type = self.strip_array_chars(cur_type)
-
-        if cur_type in native_types or cur_type in types:
-            pass
-        elif not self.types.has_key(cur_type):
-            self.add_error("undefined type: %s" % cur_type, line=0)
-        else:
-            cur = self.types[cur_type]
-            types.append(cur_type)
-            if cur["type"] == "struct":
-                if cur["extends"] != "":
-                    self.validate_type(cur["extends"], types, level)
-                for f in cur["fields"]:
-                    self.validate_type(f["type"], types, level)
-            elif cur["type"] == "interface":
-                # interface types must be top-level, so if len(types) > 1, we
-                # know this interface was used as a type in a function or struct
-                if level > 1:
-                    msg = "interface %s cannot be a field type" % cur["name"]
-                    self.add_error(msg, line=0)
-                else:
-                    for f in cur["functions"]:
-                        types = [ ]
-                        for p in f["params"]:
-                            self.validate_type(p["type"], types, 1)
-                        self.validate_type(f["returns"]["type"], types, 1)
-
-    def add_parent_fields(self, s, names, types):
-        if s["extends"] in native_types:
-            self.add_error("%s cannot extend %s" % (s["name"], s["extends"]), line=0)
-        elif self.types.has_key(s["extends"]):
-            if s["name"] not in types:
-                types.append(s["name"])
-                parent = self.types[s["extends"]]
-                if parent["type"] == "struct":
-                    for f in parent["fields"]:
-                        if f["name"] not in names:
-                            names.append(f["name"])
-                    self.add_parent_fields(parent, names, types)
-                else:
-                    self.add_error("%s cannot extend %s %s" % (s["name"], parent["type"], parent["name"]), line=0)
-
-    def validate_struct_extends(self, s):
-        names = []
-        self.add_parent_fields(s, names, [])
-        for f in s["fields"]:
-            if f["name"] in names:
-                self.add_error("%s cannot redefine parent field %s" % (s["name"], f["name"]), line=0)
-
-    def contains_cycle(self, name, types):
-        name = self.strip_array_chars(name)
-        if self.types.has_key(name):
-            t = self.types[name]
-            if t["type"] == "struct":
-                if name in types:
-                    self.add_error("cycle detected in: %s %s" % (t["type"], name), line=0)
-                    return True
-                else:
-                    types.append(name)
-                    if self.contains_cycle(t["extends"], types):
-                        return True
-                    for f in t["fields"]:
-                        # use a copy of the type list to keep function checks separate
-                        if self.contains_cycle(f["type"], types[:]):
-                            return True
-        return False
-
-    def strip_array_chars(self, name):
-        if name.find("[]") == 0:
-            return name[2:]
-        return name
-
-    def validate(self):
-        for t in self.parsed:
-            if t["type"] == "comment":
-                pass
-            elif not self.contains_cycle(t["name"], []):
-                self.validate_type(t["name"], [], 0)
-                if t["type"] == "struct":
-                    self.validate_struct_extends(t)
