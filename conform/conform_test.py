@@ -94,7 +94,7 @@ class ConformTest(unittest.TestCase):
         cmd = ["java", "-DidlJson=conform.json", 
                "-jar", winstone_jar, 
                "--httpPort=9233", "--ajp13Port=-1", java_war ]
-        self._test_server(3, "java", cmd)
+        self._test_server(10, "java", cmd)
 
     def test_node_server(self):
         cmd = ["node", "%s/conform/server.js" % barrister_node ]
