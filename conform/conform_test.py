@@ -28,6 +28,7 @@ barrister_java = env_get("BARRISTER_JAVA", "../../barrister-java")
 barrister_node = env_get("BARRISTER_NODE", "../../barrister-js")
 barrister_php  = env_get("BARRISTER_PHP", "../../barrister-php")
 barrister_ruby = env_get("BARRISTER_RUBY", "../../barrister-ruby")
+barrister_go   = env_get("BARRISTER_GO", "../../barrister-go")
 
 #
 # Java config
@@ -51,7 +52,8 @@ clients = [
     [ "java-client", ["java", "-cp", java_cp, "com.bitmechanic.barrister.conform.Client" ] ],
     [ "node-client", ["node", "%s/conform/client.js" % barrister_node ] ],
     [ "php-client",  ["php", "%s/conform/client.php" % barrister_php ] ],
-    [ "ruby-client", ["ruby", "-rubygems", "%s/conform/client.rb" % barrister_ruby ] ]
+    [ "ruby-client", ["ruby", "-rubygems", "%s/conform/client.rb" % barrister_ruby ] ],
+    [ "go-client", ["go", "run", "%s/conform/client.go" % barrister_go ] ]
 ]
 
 verbose = os.environ.has_key('CONFORM_VERBOSE')
@@ -106,7 +108,11 @@ class ConformTest(unittest.TestCase):
 
     def test_ruby_server(self):
         cmd = ["ruby", "-rubygems", "%s/conform/server.rb" % barrister_ruby, "-p", "9233" ]
-        self._test_server(1, "ruby", cmd)
+        self._test_server(2, "ruby", cmd)
+
+    def test_go_server(self):
+        cmd = ["/bin/sh", "%s/conform/server.sh" % barrister_go, "conform.json"]
+        self._test_server(2, "go", cmd)
 
     def _test_invalid_json(self):
         headers = { "Content-Type" : "application/json" }
