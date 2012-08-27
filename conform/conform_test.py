@@ -53,7 +53,7 @@ clients = [
     [ "node-client", ["node", "%s/conform/client.js" % barrister_node ] ],
     [ "php-client",  ["php", "%s/conform/client.php" % barrister_php ] ],
     [ "ruby-client", ["ruby", "-rubygems", "%s/conform/client.rb" % barrister_ruby ] ],
-    [ "go-client", ["go", "run", "%s/conform/client.go" % barrister_go ] ]
+    [ "go-client", ["%s/conform/client" % barrister_go ] ]
 ]
 
 verbose = os.environ.has_key('CONFORM_VERBOSE')
@@ -111,7 +111,7 @@ class ConformTest(unittest.TestCase):
         self._test_server(2, "ruby", cmd)
 
     def test_go_server(self):
-        cmd = ["/bin/sh", "%s/conform/server.sh" % barrister_go, "conform.json"]
+        cmd = ["%s/conform/server" % barrister_go, "conform.json"]
         self._test_server(2, "go", cmd)
 
     def _test_invalid_json(self):
