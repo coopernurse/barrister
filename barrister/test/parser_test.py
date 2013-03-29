@@ -11,9 +11,10 @@
     :license: MIT, see LICENSE for more details.
 """
 
+import os
 import time
 import unittest
-from barrister.parser import parse, IdlParseException
+from barrister.parser import parse, file_paths, IdlParseException
 
 def ret_field(type_, is_array=False, optional=False):
     return { "type": type_, "is_array": is_array, "optional": optional }
@@ -421,6 +422,59 @@ interface FooService {
                            "returns" : ret_field("string", optional=True) } ] } ]
         self.assertEquals(expected, parse(idl, add_meta=False))
 
+    def test_prefix_namespace_if_present(self):
+      idl = """
+      namespace common
+
+    struct A {
+      f1    int
+      b1    B
+    }
+
+    struct B {
+      s1    string
+    }
+
+    struct C extends common.B {
+      b1    bool
+    }
+
+    struct D {
+       a1    common.A
+       c1    C
+       dir   SortDir
+    }
+
+    enum SortDir {
+        ASC
+        DESC
+    }
+    """
+      expected = [ { "name" : "common.A", "type" : "struct", 
+                       "extends" : "", "comment" : "",
+                       "fields" : [ field("f1", "int"), 
+                                    field("b1", "common.B") ] },
+                    { "name" : "common.B", "type" : "struct", 
+                       "extends" : "", "comment" : "",
+                       "fields" : [ field("s1", "string") ] },
+                    { "name" : "common.C", "type" : "struct", 
+                       "extends" : "common.B", "comment" : "",
+                       "fields" : [ field("b1", "bool") ] },
+                    { "name" : "common.D", "type" : "struct", 
+                       "extends" : "", "comment" : "",
+                       "fields" : [ field("a1", "common.A"), 
+                                    field("c1", "common.C"),
+                                    field("dir", "common.SortDir") ] },
+                    { "name" : "common.SortDir", "type" : "enum", 
+                      "comment" : "",
+                      "values" : [ 
+                          { "comment" : "", "value": "ASC" },
+                          { "comment" : "", "value": "DESC" }
+                      ] }
+      ]
+      self.assertEquals(expected, parse(idl, validate=False, add_meta=False))
+
+
     def test_add_meta(self):
         idl = """interface FooService {
     do_foo() string
@@ -461,6 +515,31 @@ interface FooService {
             parsed = parse(idl, add_meta=True)
             meta = parsed[-1]
             self.assertNotEquals(first_checksum, meta["checksum"])
+
+    def test_file_paths(self):
+      # [0] = relative filename
+      # [1] = search path dirs
+      # [2] = expected paths returned
+
+      # set BARRISTER_TEST, which should be used if no search path is provided
+      os.environ["BARRISTER_PATH"] = "/dir1:/dir2"
+      tests = [
+        [ "a.idl", "/tmp:/usr/local", [ "a.idl", "/tmp/a.idl", "/usr/local/a.idl"] ],
+        [ "../b.idl", None, [ "../b.idl", "/dir1/../b.idl", "/dir2/../b.idl" ] ]
+      ]
+      for test in tests:
+        paths = file_paths(test[0], test[1])
+        self.assertEquals(test[2], paths)
+
+      # remove BARRISTER_PATH and re-test
+      del os.environ["BARRISTER_PATH"]
+      tests = [
+        [ "a.idl", "/tmp:/usr/local", [ "a.idl", "/tmp/a.idl", "/usr/local/a.idl"] ],
+        [ "../b.idl", None, [ "../b.idl" ] ]
+      ]
+      for test in tests:
+        paths = file_paths(test[0], test[1])
+        self.assertEquals(test[2], paths)
 
 if __name__ == "__main__":
     unittest.main()

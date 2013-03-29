@@ -7,6 +7,8 @@
     :license: MIT, see LICENSE for more details.
 """
 
+import os
+import os.path
 import time
 import copy
 import operator
@@ -30,11 +32,26 @@ native_types = [ "int", "float", "string", "bool" ]
 letter       = Range("AZaz")
 digit        = Range("09")
 under        = Str("_")
-ident        = (letter | under) + Rep(letter | digit | under)
+period       = Str(".")
+plain_ident  = (letter | under) + Rep(letter | digit | under)
+ns_ident     = plain_ident + period + plain_ident
+ident        = plain_ident | ns_ident
 arr_ident    = Str("[]") + ident
 space        = Any(" \t\n\r")
+space_tab    = Any(" \t")
 comment      = Str("// ") | Str("//")
 type_opts    = Str("[") + Rep(AnyBut("{}]\n")) + Str("]")
+namespace    = Str("namespace") + Rep(space_tab) + plain_ident
+
+def file_paths(fname, search_path=None):
+    if not search_path and os.environ.has_key("BARRISTER_PATH"):
+        search_path = os.environ["BARRISTER_PATH"]
+    paths = []
+    paths.append(fname)
+    if search_path:
+        for directory in search_path.split(os.pathsep):
+            paths.append(os.path.join(directory, fname))
+    return paths
 
 def parse(idl_text, name=None, validate=True, add_meta=True):
     if not isinstance(idl_text, (str, unicode)):
@@ -79,6 +96,7 @@ class IdlScanner(Scanner):
         self.types = { }
         self.comment = None
         self.cur = None
+        self.namespace = None
 
     def parse(self, firstPass=None):
         self.firstPass = firstPass
@@ -249,18 +267,25 @@ class IdlScanner(Scanner):
         if line < 0:
             (name, line, col) = self.position()
         self.errors.append({"line": line, "message": message})
+
+    def prefix_namespace(self, ident):
+        if self.namespace and ident.find(".") < 0 and ident not in native_types:
+            return self.namespace + "." + ident
+        return ident
         
     #####################################################
 
     def begin_struct(self, text):
         self.check_dupe_name(text)
-        self.cur = { "name" : text, "type" : "struct", "extends" : "",
+        name = self.prefix_namespace(text)
+        self.cur = { "name" : name, "type" : "struct", "extends" : "",
                      "comment" : self.get_comment(), "fields" : [] }
         self.begin('start-block')
 
     def begin_enum(self, text):
         self.check_dupe_name(text)
-        self.cur = { "name" : text, "type" : "enum", 
+        name = self.prefix_namespace(text)
+        self.cur = { "name" : name, "type" : "enum", 
                      "comment" : self.get_comment(), "values" : [] }
         self.begin('start-block')
 
@@ -280,6 +305,15 @@ class IdlScanner(Scanner):
             self.add_error("%s must have at least one %s" % flist)
             return False
         return True
+
+    def set_namespace(self, text):
+        ns = text.strip()[9:].strip()
+        self.namespace = ns
+        self.begin('end_of_line')
+
+    def end_of_line(self, text):
+        self.cur = None
+        self.begin('')
 
     def start_block(self, text):
         t = self.cur["type"]
@@ -321,7 +355,7 @@ class IdlScanner(Scanner):
             text = text[2:]
             is_array = True
         self.validate_type_vs_first_pass(text)
-        self.field["type"] = text
+        self.field["type"] = self.prefix_namespace(text)
         self.field["is_array"] = is_array
         self.field["comment"] = self.get_comment()
         self.field["optional"] = False
@@ -349,7 +383,7 @@ class IdlScanner(Scanner):
             text = text[2:]
             is_array = True
         self.validate_type_vs_first_pass(text)
-        self.param["type"] = text
+        self.param["type"] = self.prefix_namespace(text)
         self.param["is_array"] = is_array
         self.function["params"].append(self.param)
         self.param = None
@@ -362,7 +396,7 @@ class IdlScanner(Scanner):
             is_array = True
         self.validate_type_vs_first_pass(text)
         self.function["returns"] = { 
-                "type" : text, 
+                "type" : self.prefix_namespace(text), 
             "is_array" : is_array, 
             "optional" : False }
         self.type = self.function["returns"]
@@ -421,7 +455,7 @@ class IdlScanner(Scanner):
 
     def end_extends(self, text):
         if self.cur and self.cur["type"] == "struct":
-            self.cur["extends"] = text
+            self.cur["extends"] = self.prefix_namespace(text)
             self.validate_struct_extends(self.cur)
         else:
             self.add_error("extends is only supported for struct types")
@@ -434,10 +468,16 @@ class IdlScanner(Scanner):
     lex = Lexicon([
             (Str("\n"),  add_comment_block),
             (space,      IGNORE),
+            (namespace, set_namespace),
             (Str('struct '),   Begin('struct-start')),
             (Str('enum '),   Begin('enum-start')),
             (Str('interface '),   Begin('interface-start')),
             (comment,    start_comment),
+            State('end_of_line', [
+                    (Str("\r\n"), end_of_line),
+                    (Str("\n"), end_of_line),
+                    (space, IGNORE),
+                    (AnyChar, "Illegal character - expected end of line") ]),
             State('struct-start', [
                     (ident,    begin_struct),
                     (space,    IGNORE),
