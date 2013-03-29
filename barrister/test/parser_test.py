@@ -12,6 +12,8 @@
 """
 
 import os
+import os.path
+import inspect
 import time
 import unittest
 from barrister.parser import parse, file_paths, IdlParseException

@@ -42,6 +42,7 @@ space_tab    = Any(" \t")
 comment      = Str("// ") | Str("//")
 type_opts    = Str("[") + Rep(AnyBut("{}]\n")) + Str("]")
 namespace    = Str("namespace") + Rep(space_tab) + plain_ident
+import_stmt  = Str("import") + Rep(space_tab) + Str('"') + Rep(AnyBut("\"\r\n")) + Str('"')
 
 def file_paths(fname, search_path=None):
     if not search_path and os.environ.has_key("BARRISTER_PATH"):
@@ -53,24 +54,56 @@ def file_paths(fname, search_path=None):
             paths.append(os.path.join(directory, fname))
     return paths
 
-def parse(idl_text, name=None, validate=True, add_meta=True):
+def parse(idl_text, idlFilename=None, validate=True, add_meta=True):
     if not isinstance(idl_text, (str, unicode)):
         idl_text = idl_text.read()
 
-    scanner = IdlScanner(idl_text, name)
-    scanner.parse()
+    scanner = IdlScanner(idl_text, idlFilename)
+    scanner.parse(validate=validate)
     
-    if validate:
-        scanner2 = IdlScanner(idl_text, name)
-        scanner2.parse(scanner)
-        scanner = scanner2
-        
     if len(scanner.errors) == 0:
         if add_meta:
             scanner.add_meta()
         return scanner.parsed
     else:
         raise IdlParseException(scanner.errors)
+
+def validate_scanner(scanner):
+    scanner2 = IdlScanner(idl_text, idlFilename)
+    scanner2.parse(scanner)
+    scanner = scanner2
+
+def elem_checksum(elem):
+    if elem["type"] == "struct":
+        s = ""
+        fields = copy.copy(elem["fields"])
+        fields.sort(key=operator.itemgetter("name"))
+        for f in fields:
+            fs = (f["name"], f["type"], f["is_array"], f["optional"])
+            s += "\t%s\t%s\t%s\t%s" % fs
+        fs = (elem["name"], elem["extends"], s)
+        return "struct\t%s\t%s\t%s\n" % fs
+    elif elem["type"] == "enum":
+        s = "enum\t%s" % elem["name"]
+        vals = copy.copy(elem["values"])
+        vals.sort(key=operator.itemgetter("value"))
+        for v in vals: s += "\t%s" % v["value"]
+        s += "\n"
+        return s
+    elif elem["type"] == "interface":
+        s = "interface\t%s" % elem["name"]
+        funcs = copy.copy(elem["functions"])
+        funcs.sort(key=operator.itemgetter("name"))
+        for f in funcs:
+            s += "[%s" % f["name"]
+            for p in f["params"]:
+                s += "\t%s\t%s" % (p["type"], p["is_array"])
+            ret = f["returns"]
+            fs = (ret["type"], ret["is_array"], ret["optional"])
+            s += "(%s\t%s\t%s)]" % fs
+        s += "\n"
+        return s
+    return None
 
 class IdlParseException(Exception):
 
@@ -94,11 +127,20 @@ class IdlScanner(Scanner):
         self.parsed = [ ]
         self.errors = [ ]
         self.types = { }
+        self.imports = { }
         self.comment = None
         self.cur = None
         self.namespace = None
+        self.searchPath = None
+        self.idl_text = idl_text
+        self.name = name
+        if name:
+            searchPath = os.path.dirname(os.path.abspath(name))
+            if os.environ.has_key('BARRISTER_PATH'):
+                searchPath = searchPath + os.pathsep + os.environ['BARRISTER_PATH']
+            self.searchPath = searchPath
 
-    def parse(self, firstPass=None):
+    def parse(self, firstPass=None, validate=False):
         self.firstPass = firstPass
         while True:
             (t, name) = self.read()
@@ -107,6 +149,41 @@ class IdlScanner(Scanner):
             else:
                 self.add_error(t)
                 break
+
+        if validate:
+            scanner2 = IdlScanner(self.idl_text, self.name)
+            scanner2.parse(self)
+            self.parsed = scanner2.parsed
+            self.errors = scanner2.errors
+            self.types  = scanner2.types
+
+    def import_file(self, fname):
+        path_to_load = None
+        for path in file_paths(fname, self.searchPath):
+            path = os.path.abspath(path)
+            if os.path.exists(path):
+                path_to_load = path
+                break
+        if path_to_load:
+            if not self.imports.has_key(path_to_load):
+                f = open(path_to_load)
+                idl_text = f.read()
+                f.close()
+                scanner = IdlScanner(idl_text, path_to_load)
+                self.imports[path_to_load] = scanner
+                scanner.parse(validate=True)
+                for elem in scanner.parsed:
+                    if elem["type"] == "struct" or elem["type"] == "enum":
+                        if self.types.has_key(elem["name"]):
+                            c1 = elem_checksum(self.types[elem["name"]])
+                            c2 = elem_checksum(elem)
+                            if c1 != c2:
+                                self.add_error("Include %s redefined type: %s" % (path_to_load, elem["name"]))
+                        else:
+                            self.types[elem["name"]] = elem
+                            self.parsed.append(elem)
+        else:
+            self.add_error("Cannot find import file: %s" % fname)
 
     def eof(self):
         if self.cur:
@@ -130,34 +207,8 @@ class IdlScanner(Scanner):
         """
         arr = [ ]
         for elem in self.parsed:
-            if elem["type"] == "struct":
-                s = ""
-                fields = copy.copy(elem["fields"])
-                fields.sort(key=operator.itemgetter("name"))
-                for f in fields:
-                    fs = (f["name"], f["type"], f["is_array"], f["optional"])
-                    s += "\t%s\t%s\t%s\t%s" % fs
-                fs = (elem["name"], elem["extends"], s)
-                arr.append("struct\t%s\t%s\t%s\n" % fs)
-            elif elem["type"] == "enum":
-                s = "enum\t%s" % elem["name"]
-                vals = copy.copy(elem["values"])
-                vals.sort(key=operator.itemgetter("value"))
-                for v in vals: s += "\t%s" % v["value"]
-                s += "\n"
-                arr.append(s)
-            elif elem["type"] == "interface":
-                s = "interface\t%s" % elem["name"]
-                funcs = copy.copy(elem["functions"])
-                funcs.sort(key=operator.itemgetter("name"))
-                for f in funcs:
-                    s += "[%s" % f["name"]
-                    for p in f["params"]:
-                        s += "\t%s\t%s" % (p["type"], p["is_array"])
-                    ret = f["returns"]
-                    fs = (ret["type"], ret["is_array"], ret["optional"])
-                    s += "(%s\t%s\t%s)]" % fs
-                s += "\n"
+            s = elem_checksum(elem)
+            if s:
                 arr.append(s)
         arr.sort()
         #print arr
@@ -311,6 +362,13 @@ class IdlScanner(Scanner):
         self.namespace = ns
         self.begin('end_of_line')
 
+    def add_import(self, text):
+        start = text.find('"') + 1
+        end   = text[start:].find('"') + start
+        fname = text[start:end]
+        self.import_file(fname)
+        self.begin('end_of_line')
+
     def end_of_line(self, text):
         self.cur = None
         self.begin('')
@@ -354,8 +412,9 @@ class IdlScanner(Scanner):
         if text.find("[]") == 0:
             text = text[2:]
             is_array = True
-        self.validate_type_vs_first_pass(text)
-        self.field["type"] = self.prefix_namespace(text)
+        type_name = self.prefix_namespace(text)
+        self.validate_type_vs_first_pass(type_name)
+        self.field["type"] = type_name
         self.field["is_array"] = is_array
         self.field["comment"] = self.get_comment()
         self.field["optional"] = False
@@ -382,8 +441,9 @@ class IdlScanner(Scanner):
         if text.find("[]") == 0:
             text = text[2:]
             is_array = True
-        self.validate_type_vs_first_pass(text)
-        self.param["type"] = self.prefix_namespace(text)
+        type_name = self.prefix_namespace(text)
+        self.validate_type_vs_first_pass(type_name)
+        self.param["type"] = type_name
         self.param["is_array"] = is_array
         self.function["params"].append(self.param)
         self.param = None
@@ -394,9 +454,10 @@ class IdlScanner(Scanner):
         if text.find("[]") == 0:
             text = text[2:]
             is_array = True
-        self.validate_type_vs_first_pass(text)
+        type_name = self.prefix_namespace(text) 
+        self.validate_type_vs_first_pass(type_name)
         self.function["returns"] = { 
-                "type" : self.prefix_namespace(text), 
+                "type" : type_name,
             "is_array" : is_array, 
             "optional" : False }
         self.type = self.function["returns"]
@@ -468,7 +529,8 @@ class IdlScanner(Scanner):
     lex = Lexicon([
             (Str("\n"),  add_comment_block),
             (space,      IGNORE),
-            (namespace, set_namespace),
+            (namespace,   set_namespace),
+            (import_stmt, add_import),
             (Str('struct '),   Begin('struct-start')),
             (Str('enum '),   Begin('enum-start')),
             (Str('interface '),   Begin('interface-start')),
