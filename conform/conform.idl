@@ -4,22 +4,10 @@
 // are not intended to be useful.  The intent is to
 // exercise as much of the IDL grammar as possible
 
-enum Status {
-    ok
-    err
-}
-
-enum MathOp {
-    add
-    multiply
-}
-
-struct Response {
-    status Status
-}
+import "conform-inc.idl"
 
 // testing struct inheritance
-struct RepeatResponse extends Response {
+struct RepeatResponse extends inc.Response {
     count  int
     items  []string
 }
@@ -47,7 +35,7 @@ interface A {
 
   // performs the given operation against 
   // all the values in nums and returns the result
-  calc(nums []float, operation MathOp) float
+  calc(nums []float, operation inc.MathOp) float
 
   // returns the square root of a
   sqrt(a float) float

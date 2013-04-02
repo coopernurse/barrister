@@ -358,6 +358,10 @@ class IdlScanner(Scanner):
         return True
 
     def set_namespace(self, text):
+        if self.namespace:
+            self.add_error("Cannot redeclare namespace")
+        elif len(self.parsed) > 0:
+            self.add_error("namespace must preceed all struct/enum/interface definitions")
         ns = text.strip()[9:].strip()
         self.namespace = ns
         self.begin('end_of_line')
@@ -380,6 +384,8 @@ class IdlScanner(Scanner):
         elif t == "enum":
             self.begin("values")
         elif t == "interface":
+            if self.namespace:
+                self.add_error("namespace cannot be used in files with interfaces")
             self.begin("functions")
         else:
             raise Exception("Invalid type: %s" % t)

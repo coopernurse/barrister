@@ -476,6 +476,49 @@ interface FooService {
       ]
       self.assertEquals(expected, parse(idl, validate=False, add_meta=False))
 
+    def test_cannot_namespace_interfaces(self):
+        idl = """namespace foo
+
+interface FooService {
+  doStuff() bool
+}
+        """
+        try:
+            parse(idl, add_meta=False)
+            self.fail("should have thrown exception")
+        except IdlParseException as e:
+            expected = [ { "line": 3, "message" : "namespace cannot be used in files with interfaces" } ]
+            self.assertEquals(expected, e.errors)
+
+    def test_cannot_redefine_namespace(self):
+        idl = """namespace foo
+namespace bar
+        """
+        try:
+            parse(idl, add_meta=False)
+            self.fail("should have thrown exception")
+        except IdlParseException as e:
+            expected = [ { "line": 2, "message" : "Cannot redeclare namespace" } ]
+            self.assertEquals(expected, e.errors)
+
+    def test_namespace_must_preceed_elems(self):
+        idl = """enum Status { 
+        A
+        B
+        }
+
+namespace foo
+
+struct Blah { 
+    name string
+}
+        """
+        try:
+            parse(idl, add_meta=False)
+            self.fail("should have thrown exception")
+        except IdlParseException as e:
+            expected = [ { "line": 6, "message" : "namespace must preceed all struct/enum/interface definitions" } ]
+            self.assertEquals(expected, e.errors)  
 
     def test_add_meta(self):
         idl = """interface FooService {
