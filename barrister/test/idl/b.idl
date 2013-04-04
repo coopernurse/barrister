@@ -1,0 +1,6 @@
+namespace project
+
+enum ProjectType {
+	USER
+	SYSTEM
+}

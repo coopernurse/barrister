@@ -1,0 +1,5 @@
+namespace a
+
+struct Foo {
+    age   int
+}

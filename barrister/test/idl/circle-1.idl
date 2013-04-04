@@ -1,0 +1,13 @@
+namespace a
+
+import "circle-2.idl"
+
+struct A {
+    name string
+    type b.Type
+}
+
+enum Color {
+    red
+    blue
+}

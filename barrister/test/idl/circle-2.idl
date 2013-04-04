@@ -1,0 +1,14 @@
+namespace b
+
+import "circle-1.idl"
+
+struct B {
+	name   string
+	color  a.Color
+	type   Type
+}
+
+enum Type {
+	good
+	bad
+}

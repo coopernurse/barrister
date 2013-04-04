@@ -1,0 +1,5 @@
+import "circle-1.idl"
+
+interface FooService {
+	doFoo() b.Type
+}

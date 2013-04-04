@@ -1,0 +1,26 @@
+namespace common
+
+struct PaginatedResult {
+	totalRows      int
+	startOffset    int
+}
+
+enum SortDir {
+    ASC
+    DESC
+}
+
+struct SortBy {
+    name           string
+    direction      SortDir
+}
+
+struct Pagination {
+	startOffset    int
+	maxRows        int
+}
+
+struct Locale {
+    language  string
+    country   string
+}

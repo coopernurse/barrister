@@ -1,0 +1,24 @@
+namespace project
+
+// barrister parser would look for: "common.idl" in same dir as project.idl
+// it would also be useful to have a BARRISTER_PATH env var that could provide
+// directories to traverse.  
+import "common.idl"
+
+// might also be useful to allow paths -- path separator would need to be sanitized
+// to OS separator, but could be canonically defined as forward slashes
+// import "../common.idl"
+
+// use imported struct
+struct ProjectPaginatedResult extends common.PaginatedResult {
+    rows       []Project
+}
+
+struct Project {
+	name    string
+}
+
+interface ProjectService {
+	// use exported SortBy and Pagination structs as params
+	searchByName(name string, sort common.SortBy, pagination common.Pagination) ProjectPaginatedResult
+}

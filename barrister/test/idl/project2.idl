@@ -1,0 +1,7 @@
+
+import "a.idl"
+import "b.idl"
+
+interface FooService {
+	doStuff(proj project.Project) project.ProjectType
+}

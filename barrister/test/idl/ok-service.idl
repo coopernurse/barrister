@@ -1,0 +1,6 @@
+// only importing one of the 'a' files
+import "a-2.idl"
+
+interface FooService {
+	saveFoo(foo a.Foo) int
+}

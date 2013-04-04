@@ -1,0 +1,5 @@
+namespace project
+
+struct Project {
+	name  string
+}

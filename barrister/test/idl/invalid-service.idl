@@ -1,0 +1,6 @@
+import "a-1.idl"
+import "a-2.idl"
+
+interface FooService {
+	saveFoo(foo Foo) int
+}
