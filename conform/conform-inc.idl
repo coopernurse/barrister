@@ -1,0 +1,15 @@
+namespace inc
+
+enum Status {
+    ok
+    err
+}
+
+enum MathOp {
+    add
+    multiply
+}
+
+struct Response {
+    status Status
+}
