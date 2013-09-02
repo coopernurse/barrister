@@ -36,12 +36,13 @@ barrister_go   = env_get("BARRISTER_GO", "../../barrister-go")
 m2_jackson = "%s/.m2/repository/org/codehaus/jackson" % home
 jackson_deps = [ "jackson-mapper-asl/1.9.4/jackson-mapper-asl-1.9.4.jar",
                  "jackson-core-asl/1.9.4/jackson-core-asl-1.9.4.jar" ]
-java_cp = "%s/target/classes:%s/conform/target/classes" % (barrister_java, barrister_java)
+java_cp = "%s/target/classes%s%s/conform/target/classes" % (barrister_java, os.pathsep, barrister_java)
 for d in jackson_deps:
-    java_cp += ":%s/%s" % (m2_jackson, d)
-winstone_jar = "%s/conform/lib/winstone-0.9.10.jar" % barrister_java
-java_war = "%s/conform/target/barrister-conform-test.war" % barrister_java
+    java_cp += "%s%s/%s" % (os.pathsep, m2_jackson, d)
+java_jar = "%s/conform/target/barrister-conform-test-1.0-SNAPSHOT-with-deps.jar" % barrister_java
 
+java_cp = java_cp.replace("/", os.sep)
+java_jar = java_jar.replace("/", os.sep)
 
 #
 # Clients to run against each server
@@ -94,9 +95,8 @@ class ConformTest(unittest.TestCase):
 
     def test_java_server(self):
         cmd = ["java", "-DidlJson=conform.json", 
-               "-jar", winstone_jar, 
-               "--httpPort=9233", "--ajp13Port=-1", java_war ]
-        self._test_server(10, "java", cmd)
+               "-cp", java_jar, "com.bitmechanic.barrister.conform.App" ]
+        self._test_server(2, "java", cmd)
 
     def test_node_server(self):
         cmd = ["node", "%s/conform/server.js" % barrister_node ]
