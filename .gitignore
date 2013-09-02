@@ -3,6 +3,7 @@ env
 sandbox/
 doc/
 dist/
+node_modules/
 examples/*.html
 examples/*.json
 conform/*.out

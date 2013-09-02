@@ -28,7 +28,7 @@ barrister_java = env_get("BARRISTER_JAVA", "../../barrister-java")
 barrister_node = env_get("BARRISTER_NODE", "../../barrister-js")
 barrister_php  = env_get("BARRISTER_PHP", "../../barrister-php")
 barrister_ruby = env_get("BARRISTER_RUBY", "../../barrister-ruby")
-barrister_go   = env_get("BARRISTER_GO", "../../barrister-go")
+barrister_go   = env_get("GOPATH", "") + "/src/github.com/coopernurse/barrister-go"
 
 #
 # Java config
@@ -75,22 +75,41 @@ class Runner(threading.Thread):
 
     def terminate(self):
         self.proc.terminate()
+        #time.sleep(.1)
+        #if not self.proc.returncode:
+        #    self.proc.kill()
 
     def run(self):
         log("[%s] Starting process: %s" % (self.name, " ".join(self.cmd)))
-        self.proc = Popen(self.cmd, stdout=PIPE, stderr=PIPE, close_fds=False, 
+        self.proc = Popen(self.cmd, stdout=PIPE, stderr=PIPE, close_fds=False,
                           shell=False, cwd=self.cwd)
+	log("[%s] waiting for proc to end" % self.name)
         out, err = self.proc.communicate()
-        for line in out.split("\n"):
-            log("[%s out] %s" % (self.name, line))
-        for line in err.split("\n"):
-            log("[%s err] %s" % (self.name, line))
+        outd = Drain("%s out" % self.name, out)
+        errd = Drain("%s err" % self.name, err)
+        outd.start()
+        errd.start()
+        outd.join()
+        errd.join()
+	log("[%s] waiting for proc.poll()" % self.name)
         self.exit_code = self.proc.poll()
+	log("[%s] got exit_code=%d" % (self.name, self.exit_code))
+
+class Drain(threading.Thread):
+
+    def __init__(self, name, stream):
+        super(Drain, self).__init__()
+        self.name = name
+        self.stream = stream
+
+    def run(self):
+        for line in self.stream.split("\n"):
+            log("[%s] %s" %(self.name, line))
         
 class ConformTest(unittest.TestCase):
 
     def test_python_server(self):
-        cmd = ["python", "flask_server.py", "conform.json"]
+        cmd = ["python", "-u", "flask_server.py", "conform.json"]
         self._test_server(1, "python-flask", cmd)
 
     def test_java_server(self):
