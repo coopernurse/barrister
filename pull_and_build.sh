@@ -12,5 +12,4 @@ export JAVA_HOME=/usr/local/java
 export PATH=$PATH:$GOROOT/bin:$JAVA_HOME/bin:/usr/local/maven/bin
 export NODE_PATH=$NODE_PATH:$BARRISTER/node_modules
 git pull
-go get github.com/coopernurse/barrister-go
 ./jenkins_build.sh
