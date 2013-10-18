@@ -32,12 +32,14 @@ you don't have `pip` yet, you can try:
     
 Then you simply run:
 
-    pip install barrister
+    pip install --pre barrister
     
 You may need to be root to install packages globally, in which case you should `su` to root or 
 use `sudo`:
 
-    sudo pip install barrister
+    sudo pip install --pre barrister
+
+*Note* - the `--pre` tag is currently required to get install the Plex dependency. 
 
 ### Dependencies
 
