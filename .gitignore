@@ -4,6 +4,7 @@ sandbox/
 doc/
 dist/
 node_modules/
+build/
 examples/*.html
 examples/*.json
 conform/*.out

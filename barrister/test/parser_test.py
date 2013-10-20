@@ -223,12 +223,12 @@ interface Blarg {
                          { "line": 14, "message" : "type Blarg already defined" } ]
             self.assertEquals(expected, e.errors)
 
-    def test_no_cycles(self):
+    def test_no_cycles_for_required_fields(self):
         idl = """struct Animal {
     home Location
 }
 struct Location {
-    residents []Animal
+    resident Animal
 }"""
         try:
             parse(idl, add_meta=False)
@@ -237,20 +237,55 @@ struct Location {
             expected = [ { "line": 3, "message" : "cycle detected in struct: Animal" },
                          { "line": 6, "message" : "cycle detected in struct: Location" } ]
             self.assertEquals(expected, e.errors)
-            
-    def test_no_cycles_extends(self):
-        idl = """struct Animal extends Location {
-    home int
+
+    def test_slice_cycle_ok(self):
+        idl = """struct Animal {
+    home Location
 }
 struct Location {
     residents []Animal
 }"""
+        parse(idl, add_meta=False)
+
+    def test_optional_cycle_ok(self):
+        idl = """struct Animal {
+    home Location
+}
+struct Location {
+    resident Animal [optional]
+}"""
+        parse(idl, add_meta=False)
+            
+    def test_no_cycles_extends_field(self):
+        idl = """struct Animal extends Location {
+    home int
+}
+struct Location {
+    residents Animal
+}"""
         try:
-            parse(idl, add_meta=False)
-            self.fail("should have thrown exception")
+          parse(idl, add_meta=False)
+          self.fail("should have thrown exception")
         except IdlParseException as e:
-            expected = [ { "line": 3, "message" : "cycle detected in struct: Animal" } ]
-            self.assertEquals(expected, e.errors)
+          expected = [ { "line": 3, "message" : "cycle detected in struct: Animal" },
+                       { "line": 6, "message" : "cycle detected in struct: Location" } ]
+          self.assertEquals(expected, e.errors)
+
+    def test_no_mutual_extends(self):
+        idl = """struct Animal extends Location {
+    home int
+}
+struct Location extends Animal {
+    age int
+}
+"""
+        try:
+          parse(idl, add_meta=False)
+          self.fail("should have thrown exception")
+        except IdlParseException as e:
+          expected = [ { "line": 3, "message" : "cycle detected in struct: Animal" },
+                       { "line": 6, "message" : "cycle detected in struct: Location" } ]
+          self.assertEquals(expected, e.errors)
 
     def test_cycle_detection(self):
         idl = """struct Book {

@@ -297,14 +297,19 @@ class IdlScanner(Scanner):
         for f in struct["fields"]:
             type_name = self.strip_array_chars(f["type"])
             if self.types.has_key(type_name) and not type_name in types:
-                types.append(type_name)
                 t = self.types[type_name]
                 if t["type"] == "struct":
-                    self.get_struct_field_types(t, types)
+                    if not f["is_array"] and not f["optional"]:
+                        types.append(type_name)
+                        self.get_struct_field_types(t, types)
+                else:
+                    types.append(type_name)
         if struct["extends"] != "":
-            if self.types.has_key(struct["extends"]):
-                t = self.types[struct["extends"]]
+            type_name = struct["extends"]
+            if self.types.has_key(type_name) and not type_name in types:
+                t = self.types[type_name]
                 if t["type"] == "struct":
+                    types.append(type_name)
                     self.get_struct_field_types(t, types)
         return types
 

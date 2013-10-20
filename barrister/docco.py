@@ -12,6 +12,7 @@
 import sys
 import markdown
 import optparse
+import string
 try:
     import json
 except:
@@ -210,7 +211,7 @@ body .vi { color: #19469D }                     /* Name.Variable.Instance */
 body .il { color: #666666 }                     /* Literal.Number.Integer.Long */
 """
 
-def format_type(t):
+def format_type(t, includeOptional=True):
     """
     Returns the type as a string.  If the type is an array, then it is prepended with []
     
@@ -223,7 +224,7 @@ def format_type(t):
         s = "[]%s" % t['type']
     else:
         s = t['type']
-    if t.has_key('optional') and t['optional'] == True:
+    if includeOptional and t.has_key('optional') and t['optional'] == True:
         s += " [optional]"
     return s
 
@@ -321,21 +322,31 @@ def parse_struct(s):
     if s['extends']:
         code += ' extends <span class="gs">%s</span>' % s['extends']
     code += ' {\n'
-    maxlen = 0
+    namelen = 0
+    typelen = 0
     for v in s["fields"]:
-        if len(v['name']) > maxlen:
-            maxlen = len(v['name'])
+        tlen = len(format_type(v, includeOptional=False))
+        if len(v['name']) > namelen:
+            namelen = len(v['name'])
+        if tlen > typelen:
+          typelen = tlen
 
-    maxlen += 1
-    pad = ""
-    for i in range(maxlen): pad += " "
+    namelen += 1
+    typelen += 1
 
+    formatstr = '    <span class="nv">%s</span><span class="kt">%s %s</span>\n'
+
+    i = 0
     for v in s["fields"]:
         if v.has_key('comment') and v['comment']:
+            if i > 0: code += "\n"
             for line in v['comment'].split("\n"):
                 code += '    <span class="c1">// %s</span>\n' % line
-        x = maxlen - len(v['name'])
-        code += '    <span class="nv">%s</span>%s<span class="kt">%s</span>\n' % (v['name'], pad[:x], format_type(v))
+        opt = ""
+        if v.has_key('optional') and v['optional'] == True:
+          opt = " [optional]"
+        code += formatstr % (string.ljust(v['name'], namelen), string.ljust(format_type(v, includeOptional=False), typelen), opt)
+        i += 1
     code += "}"
 
     return to_section(docs, code)
