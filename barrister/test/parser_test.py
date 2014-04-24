@@ -602,10 +602,10 @@ struct Blah {
       # [2] = expected paths returned
 
       # set BARRISTER_TEST, which should be used if no search path is provided
-      os.environ["BARRISTER_PATH"] = "/dir1:/dir2"
+      os.environ["BARRISTER_PATH"] = "/dir1" + os.pathsep + "/dir2"
       tests = [
-        [ "a.idl", "/tmp:/usr/local", [ "a.idl", "/tmp/a.idl", "/usr/local/a.idl"] ],
-        [ "../b.idl", None, [ "../b.idl", "/dir1/../b.idl", "/dir2/../b.idl" ] ]
+        [ "a.idl", "/tmp" + os.pathsep + "/usr/local", [ "a.idl", "/tmp" + os.sep + "a.idl", "/usr/local" + os.sep + "a.idl"] ],
+        [ "../b.idl", None, [ "../b.idl", "/dir1" + os.sep + "../b.idl", "/dir2" + os.sep + "../b.idl" ] ]
       ]
       for test in tests:
         paths = file_paths(test[0], test[1])
@@ -614,7 +614,7 @@ struct Blah {
       # remove BARRISTER_PATH and re-test
       del os.environ["BARRISTER_PATH"]
       tests = [
-        [ "a.idl", "/tmp:/usr/local", [ "a.idl", "/tmp/a.idl", "/usr/local/a.idl"] ],
+        [ "a.idl", "/tmp" + os.pathsep + "/usr/local", [ "a.idl", "/tmp" + os.sep + "a.idl", "/usr/local" + os.sep + "a.idl"] ],
         [ "../b.idl", None, [ "../b.idl" ] ]
       ]
       for test in tests:
