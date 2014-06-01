@@ -1,6 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # setup python
 if [ ! -d env ]
@@ -9,6 +11,9 @@ then
 fi
 . env/bin/activate
 ./env/bin/pip install -r requirements.txt
+
+export PYTHONPATH=$PYTHONPATH:$DIR
+export PATH=$PATH:$DIR/bin
 
 # setup node
 if [ -n "$BARRISTER_NODE" ]
