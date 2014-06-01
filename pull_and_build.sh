@@ -9,9 +9,8 @@ export BARRISTER_NODE=$GH/barrister-js
 export BARRISTER_RUBY=$GH/barrister-ruby
 export BARRISTER_PHP=$GH/barrister-php
 export CONFORM_VERBOSE=1
-export GOPATH=/home/james/go
-export JAVA_HOME=/usr/local/java
-export PATH=$PATH:$GOROOT/bin:$JAVA_HOME/bin:/usr/local/maven/bin
+export GOPATH=$HOME/go
+export PATH=$PATH:$GOROOT/bin
 export NODE_PATH=$NODE_PATH:$BARRISTER/node_modules
 
 git pull
