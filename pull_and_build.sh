@@ -14,7 +14,7 @@ export GOPATH=$HOME/go
 export PATH=$PATH:$GOROOT/bin
 export NODE_PATH=$NODE_PATH:$BARRISTER/node_modules
 
-ln -s $BARRISTER_NODE $BARRISTER_NODE/node_modules/barrister
+ln -f -s $BARRISTER_NODE $BARRISTER_NODE/node_modules/barrister
 
 git pull
 ./jenkins_build.sh
