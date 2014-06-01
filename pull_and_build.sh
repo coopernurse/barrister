@@ -2,7 +2,7 @@
 
 set -e
 
-export GH=/home/james/github
+export GH=/usr/local/github
 export BARRISTER=$GH/barrister
 export BARRISTER_JAVA=$GH/barrister-java
 export BARRISTER_NODE=$GH/barrister-js
@@ -16,4 +16,4 @@ export NODE_PATH=$NODE_PATH:$BARRISTER/node_modules
 
 git pull
 ./jenkins_build.sh
-rsync -avz doc/ james@barrister.bitmechanic.com:/home/james/barrister-site/api/python/latest/
+#rsync -avz doc/ james@barrister.bitmechanic.com:/home/james/barrister-site/api/python/latest/
