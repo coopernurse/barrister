@@ -467,7 +467,7 @@ class IdlScanner(Scanner):
         if text.find("[]") == 0:
             text = text[2:]
             is_array = True
-        type_name = self.prefix_namespace(text) 
+        type_name = self.prefix_namespace(text)
         if type_name in void_func_types:
             self.type = None
             self.next_state = "functions"
