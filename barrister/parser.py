@@ -29,7 +29,7 @@ def md5(s):
         return md5.new(s).hexdigest()
 
 native_types   = [ "int", "float", "string", "bool" ]
-void_func_type = "void"
+void_func_types = [ "\r\n", "\n" ]
 letter         = Range("AZaz")
 digit          = Range("09")
 under          = Str("_")
@@ -99,9 +99,10 @@ def elem_checksum(elem):
             s += "[%s" % f["name"]
             for p in f["params"]:
                 s += "\t%s\t%s" % (p["type"], p["is_array"])
-            ret = f["returns"]
-            fs = (ret["type"], ret["is_array"], ret["optional"])
-            s += "(%s\t%s\t%s)]" % fs
+            if f.get("returns", None):
+                ret = f["returns"]
+                fs = (ret["type"], ret["is_array"], ret["optional"])
+                s += "(%s\t%s\t%s)]" % fs
         s += "\n"
         return s
     return None
@@ -467,22 +468,23 @@ class IdlScanner(Scanner):
             text = text[2:]
             is_array = True
         type_name = self.prefix_namespace(text) 
-        if type_name == void_func_type:
-            self.function["returns"] = { 
-                    "type" : None,
-                "is_array" : False, 
-                "optional" : True }
+        if type_name in void_func_types:
+            self.type = None
+            self.next_state = "functions"
+            self.cur["functions"].append(self.function)
+            self.function = None
+            self.begin(self.next_state)
         else:
             self.validate_type_vs_first_pass(type_name)
             self.function["returns"] = { 
                     "type" : type_name,
                 "is_array" : is_array, 
                 "optional" : False }
-        self.type = self.function["returns"]
-        self.next_state = "functions"
-        self.cur["functions"].append(self.function)
-        self.function = None
-        self.begin("type-opts")
+            self.type = self.function["returns"]
+            self.next_state = "functions"
+            self.cur["functions"].append(self.function)
+            self.function = None
+            self.begin("type-opts")
 
     def end_type_opts(self, text):
         text = text.strip()
@@ -614,6 +616,8 @@ class IdlScanner(Scanner):
                     (arr_ident, end_param),
                     (space,    IGNORE) ]),
             State('function-return', [
+                    (Str("\r\n"), end_return),
+                    (Str("\n"), end_return),
                     (space,    IGNORE),
                     (ident,    end_return),
                     (arr_ident, end_return) ]),
