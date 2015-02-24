@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # files that should parse
-okIdl=("project2.idl" "ok-service.idl")
+okIdl=("project2.idl" "ok-service.idl" "including-notifications.idl")
 
 # files that should not parse
 badIdl=("project-with-ns.idl" "broken1.idl" "invalid-service.idl" "bad-circle.idl")

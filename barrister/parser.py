@@ -28,21 +28,22 @@ def md5(s):
         import md5
         return md5.new(s).hexdigest()
 
-native_types = [ "int", "float", "string", "bool" ]
-letter       = Range("AZaz")
-digit        = Range("09")
-under        = Str("_")
-period       = Str(".")
-plain_ident  = (letter | under) + Rep(letter | digit | under)
-ns_ident     = plain_ident + period + plain_ident
-ident        = plain_ident | ns_ident
-arr_ident    = Str("[]") + ident
-space        = Any(" \t\n\r")
-space_tab    = Any(" \t")
-comment      = Str("// ") | Str("//")
-type_opts    = Str("[") + Rep(AnyBut("{}]\n")) + Str("]")
-namespace    = Str("namespace") + Rep(space_tab) + plain_ident
-import_stmt  = Str("import") + Rep(space_tab) + Str('"') + Rep(AnyBut("\"\r\n")) + Str('"')
+native_types    = [ "int", "float", "string", "bool" ]
+void_func_types = [ "\r\n", "\n" ]
+letter          = Range("AZaz")
+digit           = Range("09")
+under           = Str("_")
+period          = Str(".")
+plain_ident     = (letter | under) + Rep(letter | digit | under)
+ns_ident        = plain_ident + period + plain_ident
+ident           = plain_ident | ns_ident
+arr_ident       = Str("[]") + ident
+space           = Any(" \t\n\r")
+space_tab       = Any(" \t")
+comment         = Str("// ") | Str("//")
+type_opts       = Str("[") + Rep(AnyBut("{}]\n")) + Str("]")
+namespace       = Str("namespace") + Rep(space_tab) + plain_ident
+import_stmt     = Str("import") + Rep(space_tab) + Str('"') + Rep(AnyBut("\"\r\n")) + Str('"')
 
 def file_paths(fname, search_path=None):
     if not search_path and os.environ.has_key("BARRISTER_PATH"):
@@ -98,9 +99,10 @@ def elem_checksum(elem):
             s += "[%s" % f["name"]
             for p in f["params"]:
                 s += "\t%s\t%s" % (p["type"], p["is_array"])
-            ret = f["returns"]
-            fs = (ret["type"], ret["is_array"], ret["optional"])
-            s += "(%s\t%s\t%s)]" % fs
+            if f.get("returns", None):
+                ret = f["returns"]
+                fs = (ret["type"], ret["is_array"], ret["optional"])
+                s += "(%s\t%s\t%s)]" % fs
         s += "\n"
         return s
     return None
@@ -465,17 +467,24 @@ class IdlScanner(Scanner):
         if text.find("[]") == 0:
             text = text[2:]
             is_array = True
-        type_name = self.prefix_namespace(text) 
-        self.validate_type_vs_first_pass(type_name)
-        self.function["returns"] = { 
-                "type" : type_name,
-            "is_array" : is_array, 
-            "optional" : False }
-        self.type = self.function["returns"]
-        self.next_state = "functions"
-        self.cur["functions"].append(self.function)
-        self.function = None
-        self.begin("type-opts")
+        type_name = self.prefix_namespace(text)
+        if type_name in void_func_types:
+            self.type = None
+            self.next_state = "functions"
+            self.cur["functions"].append(self.function)
+            self.function = None
+            self.begin(self.next_state)
+        else:
+            self.validate_type_vs_first_pass(type_name)
+            self.function["returns"] = { 
+                    "type" : type_name,
+                "is_array" : is_array, 
+                "optional" : False }
+            self.type = self.function["returns"]
+            self.next_state = "functions"
+            self.cur["functions"].append(self.function)
+            self.function = None
+            self.begin("type-opts")
 
     def end_type_opts(self, text):
         text = text.strip()
@@ -607,6 +616,8 @@ class IdlScanner(Scanner):
                     (arr_ident, end_param),
                     (space,    IGNORE) ]),
             State('function-return', [
+                    (Str("\r\n"), end_return),
+                    (Str("\n"), end_return),
                     (space,    IGNORE),
                     (ident,    end_return),
                     (arr_ident, end_return) ]),
