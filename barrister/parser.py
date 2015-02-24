@@ -28,21 +28,22 @@ def md5(s):
         import md5
         return md5.new(s).hexdigest()
 
-native_types = [ "int", "float", "string", "bool" ]
-letter       = Range("AZaz")
-digit        = Range("09")
-under        = Str("_")
-period       = Str(".")
-plain_ident  = (letter | under) + Rep(letter | digit | under)
-ns_ident     = plain_ident + period + plain_ident
-ident        = plain_ident | ns_ident
-arr_ident    = Str("[]") + ident
-space        = Any(" \t\n\r")
-space_tab    = Any(" \t")
-comment      = Str("// ") | Str("//")
-type_opts    = Str("[") + Rep(AnyBut("{}]\n")) + Str("]")
-namespace    = Str("namespace") + Rep(space_tab) + plain_ident
-import_stmt  = Str("import") + Rep(space_tab) + Str('"') + Rep(AnyBut("\"\r\n")) + Str('"')
+native_types   = [ "int", "float", "string", "bool" ]
+void_func_type = "void"
+letter         = Range("AZaz")
+digit          = Range("09")
+under          = Str("_")
+period         = Str(".")
+plain_ident    = (letter | under) + Rep(letter | digit | under)
+ns_ident       = plain_ident + period + plain_ident
+ident          = plain_ident | ns_ident
+arr_ident      = Str("[]") + ident
+space          = Any(" \t\n\r")
+space_tab      = Any(" \t")
+comment        = Str("// ") | Str("//")
+type_opts      = Str("[") + Rep(AnyBut("{}]\n")) + Str("]")
+namespace      = Str("namespace") + Rep(space_tab) + plain_ident
+import_stmt    = Str("import") + Rep(space_tab) + Str('"') + Rep(AnyBut("\"\r\n")) + Str('"')
 
 def file_paths(fname, search_path=None):
     if not search_path and os.environ.has_key("BARRISTER_PATH"):
@@ -466,11 +467,17 @@ class IdlScanner(Scanner):
             text = text[2:]
             is_array = True
         type_name = self.prefix_namespace(text) 
-        self.validate_type_vs_first_pass(type_name)
-        self.function["returns"] = { 
-                "type" : type_name,
-            "is_array" : is_array, 
-            "optional" : False }
+        if type_name == void_func_type:
+            self.function["returns"] = { 
+                    "type" : None,
+                "is_array" : False, 
+                "optional" : True }
+        else:
+            self.validate_type_vs_first_pass(type_name)
+            self.function["returns"] = { 
+                    "type" : type_name,
+                "is_array" : is_array, 
+                "optional" : False }
         self.type = self.function["returns"]
         self.next_state = "functions"
         self.cur["functions"].append(self.function)
