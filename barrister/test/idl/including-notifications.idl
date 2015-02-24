@@ -1,0 +1,7 @@
+interface MyInterface {
+	// This is a "notification" method
+	NotifyMe(message string)
+
+	// This is a "regular" method
+	ARegularMethod(param1 string, param2 string) bool
+}
