@@ -11,6 +11,8 @@ The basic steps are:
 
 This project contains the core `barrister` command line tool as well as the Python bindings.
 
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/coopernurse/barrister?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+
 ## Installation
 
 ### Hosted Translator
