@@ -621,5 +621,15 @@ struct Blah {
         paths = file_paths(test[0], test[1])
         self.assertEquals(test[2], paths)
 
+    def test_notification_type(self):
+        idl = """interface FooService {
+    notifyThis(s string)
+}"""
+        expected = [ { "name" : "FooService", "type" : "interface", "comment" : "",
+                       "functions" : [
+                    { "name" : "notifyThis",  "comment" : "",
+                      "params" : [ { "type" : "string", "name" : "s", "is_array": False } ] } ] } ]
+        self.assertEquals(expected, parse(idl, add_meta=False))
+
 if __name__ == "__main__":
     unittest.main()
