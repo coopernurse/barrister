@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from barrister.parser import parse
-from barrister import docco_html, to_dotfile
+from barrister import docco_html, to_dotfile, __version__
 import optparse
 import sys
 import tempfile
@@ -43,7 +43,14 @@ if __name__ == "__main__":
     parser.add_option("-j", "--json", dest="json",
                       default=None, type="string",
                       help="File to write contract JSON to (defaults to STDOUT)")
+    parser.add_option("-v", "--version", dest="version",
+                      default=False, action="store_true",
+                      help="Print version")
     (options, args) = parser.parse_args()
+
+    if options.version:
+        print "barrister %s" % __version__
+        sys.exit(0)
 
     if options.stdin:
         parsed = parse(sys.stdin.read())
