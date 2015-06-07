@@ -4,7 +4,7 @@
     :copyright: 2012 by James Cooper.
     :license: MIT, see LICENSE for more details.
 """
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import uuid
 import itertools
 import logging
@@ -67,7 +67,7 @@ def idgen_seq():
     """
     Generates an ID using itertools.count() and returns it as a string
     """
-    return str(idgen_seq_counter.next())
+    return str(next(idgen_seq_counter))
 
 def err_response(reqid, code, msg, data=None):
     """
@@ -86,7 +86,7 @@ def safe_get(d, key, def_val=None):
     * `key` - Key to lookup in dictionary
     * `def_val` - Default value to return if dict does not have a member with key
     """
-    if d.has_key(key):
+    if key in d:
         return d[key]
     else:
         return def_val
@@ -153,7 +153,7 @@ class RequestContext(object):
           default_val
             Value to return if key is not set on the context props
         """
-        if self.props.has_key(key):
+        if key in self.props:
             return self.props[key]
         else:
             return default_val
@@ -330,7 +330,7 @@ class Server(object):
                              "Invalid Request. %s is not an object." % str(req))
 
         reqid = None
-        if req.has_key("id"):
+        if "id" in req:
             reqid = req["id"]
 
         if props == None:
@@ -348,7 +348,7 @@ class Server(object):
         try:
             result = self._call(context)
             resp = { "jsonrpc": "2.0", "id": reqid, "result": result }
-        except RpcException, e:
+        except RpcException as e:
             resp = err_response(reqid, e.code, e.msg, e.data)
         except:
             self.log.exception("Error processing request: %s" % str(req))
@@ -372,7 +372,7 @@ class Server(object):
             A dict representing a valid JSON-RPC 2.0 request.  'method' must be provided.
         """
         req = context.request
-        if not req.has_key("method"):
+        if "method" not in req:
             raise RpcException(ERR_INVALID_REQ, "Invalid Request. No 'method'.")
 
         method = req["method"]
@@ -382,11 +382,11 @@ class Server(object):
 
         iface_name, func_name = unpack_method(method)
 
-        if self.handlers.has_key(iface_name):
+        if iface_name in self.handlers:
             iface_impl = self.handlers[iface_name]
             func = getattr(iface_impl, func_name)
             if func:
-                if req.has_key("params"):
+                if "params" in req:
                     params = req["params"]
                 else:
                     params = [ ]
@@ -437,9 +437,9 @@ class HttpTransport(object):
         self.url = url
         self.headers = headers
         if handlers:
-            self.opener = urllib2.build_opener(*handlers)
+            self.opener = urllib.request.build_opener(*handlers)
         else:
-            self.opener = urllib2.build_opener()
+            self.opener = urllib.request.build_opener()
         
     def request(self, req):
         """
@@ -450,7 +450,7 @@ class HttpTransport(object):
             List or dict representing a JSON-RPC formatted request
         """
         data = json.dumps(req)
-        req = urllib2.Request(self.url, data, self.headers)
+        req = urllib.request.Request(self.url, data, self.headers)
         f = self.opener.open(req)
         resp = f.read()
         f.close()
@@ -531,7 +531,7 @@ class Client(object):
         req = {"jsonrpc": "2.0", "method": "barrister-idl", "id": "1"}
         resp = transport.request(req)
         self.contract = Contract(resp["result"])
-        for k, v in self.contract.interfaces.items():
+        for k, v in list(self.contract.interfaces.items()):
             setattr(self, k, InterfaceClientProxy(self, v))
 
     def get_meta(self):
@@ -602,10 +602,10 @@ class Client(object):
           resp
             Dict formatted as a JSON-RPC response
         """
-        if resp.has_key("error"):
+        if "error" in resp:
             e = resp["error"]
             data = None
-            if e.has_key("data"):
+            if "data" in e:
                 data = e["data"]
             raise RpcException(e["code"], e["message"], data)
             
@@ -641,7 +641,7 @@ class InterfaceClientProxy(object):
         """
         self.client = client
         iface_name = iface.name
-        for func_name, func in iface.functions.items():
+        for func_name, func in list(iface.functions.items()):
             setattr(self, func_name, self._caller(iface_name, func_name))
 
     def _caller(self, iface_name, func_name):
@@ -681,7 +681,7 @@ class Batch(object):
         self.client = client
         self.req_list = [ ]
         self.sent = False
-        for k, v in client.contract.interfaces.items():
+        for k, v in list(client.contract.interfaces.items()):
             setattr(self, k, InterfaceClientProxy(self, v))
 
     def call(self, iface_name, func_name, params):
@@ -779,7 +779,7 @@ class Contract(object):
             elif e["type"] == "interface":
                 self.interfaces[e["name"]] = Interface(e, self)
             elif e["type"] == "meta":
-                for k,v in e.items():
+                for k,v in list(e.items()):
                     if k != "type":
                         self.meta[k] = v
 
@@ -831,11 +831,11 @@ class Contract(object):
           name
             Name of struct/enum/interface to return
         """
-        if self.structs.has_key(name):
+        if name in self.structs:
             return self.structs[name]
-        elif self.enums.has_key(name):
+        elif name in self.enums:
             return self.enums[name]
-        elif self.interfaces.has_key(name):
+        elif name in self.interfaces:
             return self.interfaces[name]
         else:
             raise RpcException(ERR_INVALID_PARAMS, "Unknown entity: '%s'" % name)
@@ -844,7 +844,7 @@ class Contract(object):
         """
         Returns the struct with the given name, or raises RpcException if no struct matches
         """
-        if self.structs.has_key(struct_name):
+        if struct_name in self.structs:
             return self.structs[struct_name]
         else:
             raise RpcException(ERR_INVALID_PARAMS, "Unknown struct: '%s'", struct_name)
@@ -853,7 +853,7 @@ class Contract(object):
         """
         Returns True if an interface exists with the given name.  Otherwise returns False
         """
-        return self.interfaces.has_key(iface_name)
+        return iface_name in self.interfaces
 
     def interface(self, iface_name):
         """
@@ -895,16 +895,16 @@ class Contract(object):
                     if not ok:
                         return ok, msg
         elif expected_type.type == "int":
-            if not isinstance(val, (long, int)):
+            if not isinstance(val, int):
                 return self._type_err(val, "int")
         elif expected_type.type == "float":
-            if not isinstance(val, (float, int, long)):
+            if not isinstance(val, (float, int)):
                 return self._type_err(val, "float")
         elif expected_type.type == "bool":
             if not isinstance(val, bool):
                 return self._type_err(val, "bool")
         elif expected_type.type == "string":
-            if not isinstance(val, (str, unicode)):
+            if not isinstance(val, str):
                 return self._type_err(val, "string")
         else:
             return self.get(expected_type.type).validate(val)
@@ -939,7 +939,7 @@ class Interface(object):
         Returns the Function instance associated with the given func_name, or raises a
         RpcException if no function matches.
         """
-        if self.functions.has_key(func_name):
+        if func_name in self.functions:
             return self.functions[func_name]
         else:
             raise RpcException(ERR_METHOD_NOT_FOUND, 
@@ -1016,7 +1016,7 @@ class Struct(object):
           name
             string name of field to lookup
         """
-        if self.fields.has_key(name):
+        if name in self.fields:
             return self.fields[name]
         elif self.extends:
             if not self.parent:
@@ -1043,7 +1043,7 @@ class Struct(object):
         if type(val) is not dict:
             return False, "%s is not a dict" % (str(val))
 
-        for k, v in val.items():
+        for k, v in list(val.items()):
             field = self.field(k)
             if field:
                 ok, msg = self.contract.validate(field, field.is_array, v)
@@ -1054,7 +1054,7 @@ class Struct(object):
 
         all_fields = self.get_all_fields([])
         for field in all_fields:
-            if not val.has_key(field.name) and not field.optional:
+            if field.name not in val and not field.optional:
                 return False, "field '%s' missing from: %s" % (field.name, str(val))
 
         return True, None
@@ -1064,7 +1064,7 @@ class Struct(object):
         Returns a list containing this struct's fields and all the fields of
         its ancestors.  Used during validation.
         """
-        for k, v in self.fields.items():
+        for k, v in list(self.fields.items()):
             arr.append(v)
             
         if self.extends:
@@ -1153,9 +1153,9 @@ class Type(object):
     def __init__(self, type_dict):
         self.name = ""
         self.optional = False
-        if type_dict.has_key("name"):
+        if "name" in type_dict:
             self.name = type_dict["name"]
         self.type = type_dict["type"]
         self.is_array = type_dict["is_array"]
-        if type_dict.has_key("optional"):
+        if "optional" in type_dict:
             self.optional = type_dict["optional"]
