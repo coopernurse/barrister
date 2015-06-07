@@ -223,10 +223,10 @@ class Server(object):
         """
         logging.basicConfig()
         self.log = logging.getLogger("barrister")
-        self.validate_req  = validate_request
+        self.validate_req = validate_request
         self.validate_resp = validate_response
         self.contract = contract
-        self.handlers = { }
+        self.handlers = {}
         self.filters = None
 
     def add_handler(self, iface_name, handler):
@@ -299,9 +299,8 @@ class Server(object):
             if len(req) < 1:
                 resp = err_response(None, ERR_INVALID_REQ, "Invalid Request. Empty batch.")
             else:
-                resp = [ ]
-                for r in req:
-                    resp.append(self._call_and_format(r, props))
+                # run the batch call collecting the responses
+                resp = [self._call_and_format(r, props) for r in req]
         else:
             resp = self._call_and_format(req, props)
 
@@ -324,14 +323,14 @@ class Server(object):
         """
         if not isinstance(req, dict):
             return err_response(None, ERR_INVALID_REQ, 
-                             "Invalid Request. %s is not an object." % str(req))
+                                "Invalid Request. %s is not an object." % str(req))
 
         reqid = None
         if "id" in req:
             reqid = req["id"]
 
-        if props == None:
-            props = { }
+        if props is None:
+            props = {}
         context = RequestContext(props, req)
 
         if self.filters:
@@ -347,9 +346,12 @@ class Server(object):
             resp = { "jsonrpc": "2.0", "id": reqid, "result": result }
         except RpcException as e:
             resp = err_response(reqid, e.code, e.msg, e.data)
-        except:
+        except Exception as e:
             self.log.exception("Error processing request: %s" % str(req))
-            resp = err_response(reqid, ERR_UNKNOWN, "Server error. Check logs for details.")
+            resp = err_response(reqid, ERR_UNKNOWN, "Server error. Check logs for details.",
+                                data={
+                                    'exception': str(e)
+                                })
         
         if self.filters:
             context.response = resp
@@ -386,7 +388,7 @@ class Server(object):
                 if "params" in req:
                     params = req["params"]
                 else:
-                    params = [ ]
+                    params = []
 
                 if self.validate_req:
                     self.contract.validate_request(iface_name, func_name, params)
