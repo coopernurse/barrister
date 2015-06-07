@@ -15,18 +15,11 @@ import operator
 import io
 from plex import Scanner, Lexicon, Str, State, IGNORE
 from plex import Begin, Any, AnyBut, AnyChar, Range, Rep
-try:
-    import json
-except:
-    import simplejson as json
+import json
+import hashlib
 
 def md5(s):
-    try:
-        import hashlib
-        return hashlib.md5(s).hexdigest()
-    except:
-        import md5
-        return md5.new(s).hexdigest()
+    return hashlib.md5(s).hexdigest()
 
 native_types    = [ "int", "float", "string", "bool" ]
 void_func_types = [ "\r\n", "\n" ]

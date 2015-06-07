@@ -8,10 +8,7 @@ import urllib.request, urllib.error, urllib.parse
 import uuid
 import itertools
 import logging
-try:
-    import json
-except: 
-    import simplejson as json
+import json
 
 # JSON-RPC standard error codes
 ERR_PARSE = -32700
@@ -1104,20 +1101,15 @@ class Function(object):
         Validates params against expected types for this function.  
         Raises RpcException if the params are invalid.
         """
-        plen = 0
-        if params != None:
-            plen = len(params)
+        if params is not None:
+            # check param lengths match
+            if len(self.params) != len(params):
+                vals = (self.full_name, len(self.params), len(params))
+                msg = "Function '%s' expects %d param(s). %d given." % vals
+                raise RpcException(ERR_INVALID_PARAMS, msg)
 
-        if len(self.params) != plen:
-            vals = (self.full_name, len(self.params), plen)
-            msg = "Function '%s' expects %d param(s). %d given." % vals
-            raise RpcException(ERR_INVALID_PARAMS, msg)
-        
-        if params != None:
-            i = 0
-            for p in self.params:
-                self._validate_param(p, params[i])
-                i += 1
+            # compare each expected and given param
+            [self._validate_param(x, y) for (x, y) in zip(self.params, params)]
 
     def validate_response(self, resp):
         """

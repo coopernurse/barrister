@@ -13,10 +13,7 @@ import sys
 import markdown
 import optparse
 import string
-try:
-    import json
-except:
-    import simplejson as json
+import json
 
 #
 # Thank you Jeremy Ashkenas
