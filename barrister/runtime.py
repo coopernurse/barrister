@@ -4,11 +4,18 @@
     :copyright: 2012 by James Cooper.
     :license: MIT, see LICENSE for more details.
 """
-import urllib.request, urllib.error, urllib.parse
+
 import uuid
 import itertools
 import logging
 import json
+import six
+
+if six.PY2:
+    import urllib2 as urllib
+else:
+    import urllib.request as urllib
+    import urllib.error, urllib.parse
 
 # JSON-RPC standard error codes
 ERR_PARSE = -32700
@@ -78,7 +85,7 @@ def err_response(reqid, code, msg, data=None):
 def safe_get(d, key, def_val=None):
     """
     Helper function to fetch value from a dictionary
-    
+
     * `d` - Dictionary to fetch value from
     * `key` - Key to lookup in dictionary
     * `def_val` - Default value to return if dict does not have a member with key
@@ -177,7 +184,7 @@ class Filter(object):
     Base filter class that implements pre and post functions, but no-ops for both.
     Subclass this and override pre/post to add filter functionality for your app.
     """
-    
+
     def pre(self, context):
         """
         Pre-Handler hook.  Called before the RPC request handler is invoked.
@@ -268,7 +275,7 @@ class Server(object):
           req_json
             JSON-RPC request serialized as JSON string
           props
-            Application defined properties to set on RequestContext for use with filters. 
+            Application defined properties to set on RequestContext for use with filters.
             For example: authentication headers.  Must be a dict.
         """
         try:
@@ -287,7 +294,7 @@ class Server(object):
           req
             The request. Either a list of dicts, or a single dict.
           props
-            Application defined properties to set on RequestContext for use with filters. 
+            Application defined properties to set on RequestContext for use with filters.
             For example: authentication headers.  Must be a dict.
         """
         resp = None
@@ -307,22 +314,22 @@ class Server(object):
         if self.log.isEnabledFor(logging.DEBUG):
             self.log.debug("Response: %s" % str(resp))
         return resp
-    
+
     def _call_and_format(self, req, props=None):
         """
         Invokes a single request against a handler using _call() and traps any errors,
-        formatting them using _err().  If the request is successful it is wrapped in a 
+        formatting them using _err().  If the request is successful it is wrapped in a
         JSON-RPC 2.0 compliant dict with keys: 'jsonrpc', 'id', 'result'.
 
         :Parameters:
           req
             A single dict representing a single JSON-RPC request
           props
-            Application defined properties to set on RequestContext for use with filters. 
+            Application defined properties to set on RequestContext for use with filters.
             For example: authentication headers.  Must be a dict.
         """
         if not isinstance(req, dict):
-            return err_response(None, ERR_INVALID_REQ, 
+            return err_response(None, ERR_INVALID_REQ,
                                 "Invalid Request. %s is not an object." % str(req))
 
         reqid = None
@@ -352,7 +359,7 @@ class Server(object):
                                 data={
                                     'exception': str(e)
                                 })
-        
+
         if self.filters:
             context.response = resp
             for f in self.filters:
@@ -410,7 +417,7 @@ class Server(object):
                 raise RpcException(ERR_METHOD_NOT_FOUND, msg)
         else:
             msg = "No implementation of '%s' found" % (iface_name)
-            raise RpcException(ERR_METHOD_NOT_FOUND, msg)        
+            raise RpcException(ERR_METHOD_NOT_FOUND, msg)
 
 class HttpTransport(object):
     """
@@ -436,10 +443,10 @@ class HttpTransport(object):
         self.url = url
         self.headers = headers
         if handlers:
-            self.opener = urllib.request.build_opener(*handlers)
+            self.opener = urllib.build_opener(*handlers)
         else:
-            self.opener = urllib.request.build_opener()
-        
+            self.opener = urllib.build_opener()
+
     def request(self, req):
         """
         Makes a request against the server and returns the deserialized result.
@@ -449,7 +456,7 @@ class HttpTransport(object):
             List or dict representing a JSON-RPC formatted request
         """
         data = json.dumps(req)
-        req = urllib.request.Request(self.url, data, self.headers)
+        req = urllib.Request(self.url, data, self.headers)
         f = self.opener.open(req)
         resp = f.read()
         f.close()
@@ -461,7 +468,7 @@ class InProcTransport(object):
     This is useful for quickly unit testing services without having to go over the network.
     """
     def __init__(self, server):
-        """ 
+        """
         Creates a new InProcTransport for the given Server
 
         :Parameters:
@@ -483,8 +490,8 @@ class InProcTransport(object):
 class Client(object):
     """
     Main class for consuming a server implementation.  Given a transport it loads the IDL from
-    the server and creates proxy objects that can be called like local classes from your 
-    application code.  
+    the server and creates proxy objects that can be called like local classes from your
+    application code.
 
     With the exception of start_batch, you generally never need to use the methods provided by this
     class directly.
@@ -510,10 +517,10 @@ class Client(object):
           transport
             Transport object to use to make requests
           validate_request
-            If True, the request will be validated against the Contract and a RpcException raised if 
+            If True, the request will be validated against the Contract and a RpcException raised if
             it does not match the IDL
           validate_response
-            If True, the response will be validated against the Contract and a RpcException raised if 
+            If True, the response will be validated against the Contract and a RpcException raised if
             it does not match the IDL
           id_gen
             A callable to use to create request IDs.  JSON-RPC request IDs are only used by Barrister
@@ -578,7 +585,7 @@ class Client(object):
         """
         if self.validate_req:
             self.contract.validate_request(iface_name, func_name, params)
-            
+
         method = "%s.%s" % (iface_name, func_name)
         reqid = self.id_gen()
         return { "jsonrpc": "2.0", "id": reqid, "method": method, "params": params }
@@ -586,7 +593,7 @@ class Client(object):
     def to_result(self, iface_name, func_name, resp):
         """
         Takes a JSON-RPC response and checks for an "error" slot. If it exists,
-        a RpcException is raised.  If no "error" slot exists, the "result" slot is 
+        a RpcException is raised.  If no "error" slot exists, the "result" slot is
         returned.
 
         If validate_response==True on the Client constructor, the result is validated
@@ -607,9 +614,9 @@ class Client(object):
             if "data" in e:
                 data = e["data"]
             raise RpcException(e["code"], e["message"], data)
-            
+
         result = resp["result"]
-        
+
         if self.validate_resp:
             self.contract.validate_response(iface_name, func_name, result)
         return result
@@ -647,7 +654,7 @@ class InterfaceClientProxy(object):
         """
         Returns a function for the given interface and function name.  When invoked it
         calls client.call() with the correct arguments.
-        
+
         :Parameters:
           iface_name
             Name of interface to call when invoked
@@ -658,7 +665,7 @@ class InterfaceClientProxy(object):
         """
         def caller(*params):
             return self.client.call(iface_name, func_name, params)
-        return caller        
+        return caller
 
 class Batch(object):
     """
@@ -701,10 +708,10 @@ class Batch(object):
         """
         Sends the batch request to the server and returns a list of RpcResponse
         objects.  The list will be in the order that the requests were made to
-        the batch.  Note that the RpcResponse objects may contain an error or a 
+        the batch.  Note that the RpcResponse objects may contain an error or a
         successful result.  When you iterate through the list, you must test for
         response.error.
-        
+
         send() may not be called more than once.
         """
         if self.sent:
@@ -712,7 +719,7 @@ class Batch(object):
         else:
             self.sent = True
             results = self.client.transport.request(self.req_list)
-            
+
             id_to_method = { }
             by_id = { }
             for res in results:
@@ -736,17 +743,17 @@ class Batch(object):
                         error = RpcException(r_err["code"], r_err["message"], safe_get(r_err, "data"))
                 in_req_order.append(RpcResponse(req, result, error))
             return in_req_order
-                
+
 
 class RpcResponse(object):
     """
     Represents a single response in a batch call.  Has the following properties:
-    
+
     * `request` - JSON-RPC request dict
     * `result`  - Result from this call. Set to None if there was an error.
     * `error`   - RpcException instance.  Set to None if call was successful.
     """
-    
+
     def __init__(self, request, result, error):
         self.request = request
         self.result  = result
@@ -784,8 +791,8 @@ class Contract(object):
 
     def validate_request(self, iface_name, func_name, params):
         """
-        Validates that the given params match the expected length and types for this 
-        interface and function.  
+        Validates that the given params match the expected length and types for this
+        interface and function.
 
         Returns two element tuple: (bool, string)
 
@@ -804,7 +811,7 @@ class Contract(object):
 
     def validate_response(self, iface_name, func_name, resp):
         """
-        Validates that the response matches the return type for the function  
+        Validates that the response matches the return type for the function
 
         Returns two element tuple: (bool, string)
 
@@ -941,7 +948,7 @@ class Interface(object):
         if func_name in self.functions:
             return self.functions[func_name]
         else:
-            raise RpcException(ERR_METHOD_NOT_FOUND, 
+            raise RpcException(ERR_METHOD_NOT_FOUND,
                                "%s: Unknown function: '%s'", self.name, func_name)
 
 class Enum(object):
@@ -1005,7 +1012,7 @@ class Struct(object):
 
     def field(self, name):
         """
-        Returns the field on this struct with the given name. Will try to find this 
+        Returns the field on this struct with the given name. Will try to find this
         name on all ancestors if this struct extends another.
 
         If found, returns a dict with keys: 'name', 'comment', 'type', 'is_array'
@@ -1065,7 +1072,7 @@ class Struct(object):
         """
         for k, v in list(self.fields.items()):
             arr.append(v)
-            
+
         if self.extends:
             parent = self.contract.get(self.extends)
             if parent:
@@ -1097,10 +1104,10 @@ class Function(object):
             self.params.append(Type(p))
         self.returns = Type(f["returns"])
         self.full_name = "%s.%s" % (iface_name, self.name)
-        
+
     def validate_params(self, params):
         """
-        Validates params against expected types for this function.  
+        Validates params against expected types for this function.
         Raises RpcException if the params are invalid.
         """
         if params is not None:
@@ -1115,10 +1122,10 @@ class Function(object):
 
     def validate_response(self, resp):
         """
-        Validates resp against expected return type for this function.  
+        Validates resp against expected return type for this function.
         Raises RpcException if the response is invalid.
         """
-        ok, msg = self.contract.validate(self.returns, 
+        ok, msg = self.contract.validate(self.returns,
                                          self.returns.is_array, resp)
         if not ok:
             vals = (self.full_name, str(resp), msg)
@@ -1129,7 +1136,7 @@ class Function(object):
         """
         Validates a single param against its expected type.
         Raises RpcException if the param is invalid
-        
+
         :Parameters:
           expected
             Type instance

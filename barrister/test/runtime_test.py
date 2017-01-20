@@ -15,55 +15,6 @@ import uuid
 import time
 import unittest
 import barrister
-from barrister.parser import parse
-
-idl = """
-struct User {
-    userId string
-    password string
-    email string
-    emailVerified bool
-    dateCreated int
-    age float [optional]
-}
-
-enum Status {
-    ok
-    invalid
-    error
-}
-
-struct Response {
-    status Status
-    message string
-}
-
-struct CountResponse extends Response {
-    count int
-}
-
-struct CreateUserResponse extends Response {
-    userId string
-}
-
-struct UserResponse extends Response {
-    user User
-}
-
-struct UsersResponse extends Response {
-    users []User
-}
-
-interface UserService {
-    get(userId string) UserResponse
-    create(user User) CreateUserResponse
-    update(user User) Response
-    validateEmail(userId string) Response
-    changePassword(userId string, oldPass string, newPass string) Response
-    countUsers() CountResponse
-    getAll(userIds []string) UsersResponse
-}
-"""
 
 def newUser(userId="abc123", email=None):
     return { "userId" : userId, "password" : "pw", "email" : email,
@@ -115,7 +66,7 @@ class UserServiceImpl(object):
 class RuntimeTest(unittest.TestCase):
 
     def setUp(self):
-        contract = barrister.Contract(parse(idl))
+        contract = barrister.contract_from_file('./barrister/test/idl/runtime.json')
         self.user_svc = UserServiceImpl()
         self.server = barrister.Server(contract)
         self.server.add_handler("UserService", self.user_svc)
@@ -141,7 +92,7 @@ class RuntimeTest(unittest.TestCase):
 
     def test_invalid_req(self):
         svc = self.client.UserService
-        cases = [ 
+        cases = [
             [ svc.get ],  # too few args
             [ svc.get, 1, 2 ], # too many args
             [ svc.get, 1 ], # wrong type
@@ -164,7 +115,7 @@ class RuntimeTest(unittest.TestCase):
 
     def test_invalid_resp(self):
         svc = self.client.UserService
-        responses = [ 
+        responses = [
             { }, # missing fields
             { "status" : "blah" }, # invalid enum
             { "status" : "ok", "message" : 1 }, # invalid type
@@ -219,4 +170,3 @@ class RuntimeTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

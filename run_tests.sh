@@ -6,7 +6,10 @@ export PYTHONPATH=`pwd`
 
 # regular unit tests
 # use xargs instead of -exec so that we get exit code propegation
-find ./barrister/test -name "*_test.py" -print | xargs -n1 python
+find ./barrister/test -name "*_test.py" -print | xargs -n1 python2
+
+# Validate Python3
+python3 ./barrister/test/runtime_test.py
 
 # run script to test parsing various IDL files
 ./idl_parse_test.sh
@@ -20,4 +23,4 @@ go build server.go
 cd -
 
 # conformance test suite
-cd conform; rm -f *.out; python conform_test.py
+cd conform; rm -f *.out; python2 conform_test.py
