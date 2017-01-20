@@ -910,7 +910,7 @@ class Contract(object):
             if not isinstance(val, bool):
                 return self._type_err(val, "bool")
         elif expected_type.type == "string":
-            if not isinstance(val, str):
+            if not isinstance(val, six.text_type):
                 return self._type_err(val, "string")
         else:
             return self.get(expected_type.type).validate(val)
