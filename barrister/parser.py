@@ -12,7 +12,13 @@ import os.path
 import time
 import copy
 import operator
-import io
+import six
+
+if six.PY2:
+    import cStringIO as io
+else:
+    import io
+
 from plex import Scanner, Lexicon, Str, State, IGNORE
 from plex import Begin, Any, AnyBut, AnyChar, Range, Rep
 import json
@@ -49,12 +55,12 @@ def file_paths(fname, search_path=None):
     return paths
 
 def parse(idl_text, idlFilename=None, validate=True, add_meta=True):
-    if not isinstance(idl_text, str):
+    if not isinstance(idl_text, (str, six.text_type)):
         idl_text = idl_text.read()
 
     scanner = IdlScanner(idl_text, idlFilename)
     scanner.parse(validate=validate)
-    
+
     if len(scanner.errors) == 0:
         if add_meta:
             scanner.add_meta()
@@ -115,7 +121,7 @@ class IdlParseException(Exception):
         return s
 
 class IdlScanner(Scanner):
-    
+
     def __init__(self, idl_text, name):
         f = io.StringIO(idl_text)
         Scanner.__init__(self, self.lex, f, name)
@@ -196,8 +202,8 @@ class IdlScanner(Scanner):
 
     def get_checksum(self):
         """
-        Returns a checksum based on the IDL that ignores comments and 
-        ordering, but detects changes to types, parameter order, 
+        Returns a checksum based on the IDL that ignores comments and
+        ordering, but detects changes to types, parameter order,
         and enum values.
         """
         arr = [ ]
@@ -208,9 +214,9 @@ class IdlScanner(Scanner):
         arr.sort()
         #print arr
         return md5(json.dumps(arr))
-        
+
     #####################################################
-        
+
     def validate_type_vs_first_pass(self, type_str):
         if self.firstPass:
             self.add_error(self.firstPass.validate_type(type_str, [], 0))
@@ -234,7 +240,7 @@ class IdlScanner(Scanner):
                     self.validate_type(f["type"], types, level)
             elif cur["type"] == "interface":
                 # interface types must be top-level, so if len(types) > 1, we
-                # know this interface was used as a type in a function 
+                # know this interface was used as a type in a function
                 # or struct
                 return "interface %s cannot be used as a type" % cur["name"]
                 if level > 1:
@@ -250,7 +256,7 @@ class IdlScanner(Scanner):
         if self.firstPass:
             name    = s["name"]
             extends = s["extends"]
-             
+
             if extends in native_types:
                 self.add_error("%s cannot extend %s" % (name, extends))
             elif extends in self.firstPass.types:
@@ -260,7 +266,7 @@ class IdlScanner(Scanner):
                     self.add_error("%s cannot extend %s %s" % fs)
             else:
                 self.add_error("%s extends unknown type %s" % (name, extends))
-                    
+
     def validate_struct_field(self, s):
         if self.firstPass:
             names = self.get_parent_fields(s, [], [])
@@ -269,13 +275,13 @@ class IdlScanner(Scanner):
                     errf = (s["name"], f["name"])
                     err  = "%s cannot redefine parent field %s" % errf
                     self.add_error(err)
-                    
+
     def validate_struct_cycles(self, s):
         if self.firstPass:
             all_types = self.firstPass.get_struct_field_types(s, [])
             if s["name"] in all_types:
                 self.add_error("cycle detected in struct: %s" % s["name"])
-                    
+
     def get_parent_fields(self, s, names, types):
         if s["extends"] in self.types:
             if s["name"] not in types:
@@ -287,7 +293,7 @@ class IdlScanner(Scanner):
                             names.append(f["name"])
                     self.get_parent_fields(parent, names, types)
         return names
-        
+
     def get_struct_field_types(self, struct, types):
         for f in struct["fields"]:
             type_name = self.strip_array_chars(f["type"])
@@ -323,7 +329,7 @@ class IdlScanner(Scanner):
         if self.namespace and ident.find(".") < 0 and ident not in native_types:
             return self.namespace + "." + ident
         return ident
-        
+
     #####################################################
 
     def begin_struct(self, text):
@@ -336,13 +342,13 @@ class IdlScanner(Scanner):
     def begin_enum(self, text):
         self.check_dupe_name(text)
         name = self.prefix_namespace(text)
-        self.cur = { "name" : name, "type" : "enum", 
+        self.cur = { "name" : name, "type" : "enum",
                      "comment" : self.get_comment(), "values" : [] }
         self.begin('start-block')
 
     def begin_interface(self, text):
         self.check_dupe_name(text)
-        self.cur = { "name" : text, "type" : "interface", 
+        self.cur = { "name" : text, "type" : "interface",
                      "comment" : self.get_comment(), "functions" : [] }
         self.begin('start-block')
 
@@ -401,7 +407,7 @@ class IdlScanner(Scanner):
             ok = self.check_not_empty(self.cur, "values", "value")
         elif t == "interface":
             ok = self.check_not_empty(self.cur, "functions", "function")
-        
+
         if ok:
             self.parsed.append(self.cur)
             self.types[self.cur["name"]] = self.cur
@@ -432,9 +438,9 @@ class IdlScanner(Scanner):
         self.begin("type-opts")
 
     def begin_function(self, text):
-        self.function = { 
-               "name" : text, 
-            "comment" : self.get_comment(), 
+        self.function = {
+               "name" : text,
+            "comment" : self.get_comment(),
              "params" : [ ] }
         self.begin("function-start")
 
@@ -454,7 +460,7 @@ class IdlScanner(Scanner):
         self.function["params"].append(self.param)
         self.param = None
         self.begin("end-param")
-        
+
     def end_return(self, text):
         is_array = False
         if text.find("[]") == 0:
@@ -469,9 +475,9 @@ class IdlScanner(Scanner):
             self.begin(self.next_state)
         else:
             self.validate_type_vs_first_pass(type_name)
-            self.function["returns"] = { 
+            self.function["returns"] = {
                     "type" : type_name,
-                "is_array" : is_array, 
+                "is_array" : is_array,
                 "optional" : False }
             self.type = self.function["returns"]
             self.next_state = "functions"
@@ -633,4 +639,3 @@ class IdlScanner(Scanner):
                     (Str("\n"),     end_comment),
                     (AnyChar, append_comment) ])
             ])
-
