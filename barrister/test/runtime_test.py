@@ -15,58 +15,9 @@ import uuid
 import time
 import unittest
 import barrister
-from barrister.parser import parse
-
-idl = """
-struct User {
-    userId string
-    password string
-    email string
-    emailVerified bool
-    dateCreated int
-    age float [optional]
-}
-
-enum Status {
-    ok
-    invalid
-    error
-}
-
-struct Response {
-    status Status
-    message string
-}
-
-struct CountResponse extends Response {
-    count int
-}
-
-struct CreateUserResponse extends Response {
-    userId string
-}
-
-struct UserResponse extends Response {
-    user User
-}
-
-struct UsersResponse extends Response {
-    users []User
-}
-
-interface UserService {
-    get(userId string) UserResponse
-    create(user User) CreateUserResponse
-    update(user User) Response
-    validateEmail(userId string) Response
-    changePassword(userId string, oldPass string, newPass string) Response
-    countUsers() CountResponse
-    getAll(userIds []string) UsersResponse
-}
-"""
 
 def newUser(userId="abc123", email=None):
-    return { "userId" : userId, "password" : u"pw", "email" : email,
+    return { "userId" : userId, "password" : "pw", "email" : email,
       "emailVerified" : False, "dateCreated" : 1, "age" : 3.3 }
 
 def now_millis():
@@ -115,7 +66,7 @@ class UserServiceImpl(object):
 class RuntimeTest(unittest.TestCase):
 
     def setUp(self):
-        contract = barrister.Contract(parse(idl))
+        contract = barrister.contract_from_file('./barrister/test/idl/runtime.json')
         self.user_svc = UserServiceImpl()
         self.server = barrister.Server(contract)
         self.server.add_handler("UserService", self.user_svc)
@@ -133,15 +84,15 @@ class RuntimeTest(unittest.TestCase):
         resp = svc.create(user)
         self.assertTrue(resp["userId"])
         user2 = svc.get(resp["userId"])["user"]
-        self.assertEquals(user["email"], user2["email"])
+        self.assertEqual(user["email"], user2["email"])
         self.assertTrue(user["dateCreated"] > 0)
-        self.assertEquals("ok", svc.changePassword("123", "oldpw", "newpw")["status"])
-        self.assertEquals(1, svc.countUsers()["count"])
+        self.assertEqual("ok", svc.changePassword("123", "oldpw", "newpw")["status"])
+        self.assertEqual(1, svc.countUsers()["count"])
         svc.getAll([])
 
     def test_invalid_req(self):
         svc = self.client.UserService
-        cases = [ 
+        cases = [
             [ svc.get ],  # too few args
             [ svc.get, 1, 2 ], # too many args
             [ svc.get, 1 ], # wrong type
@@ -164,7 +115,7 @@ class RuntimeTest(unittest.TestCase):
 
     def test_invalid_resp(self):
         svc = self.client.UserService
-        responses = [ 
+        responses = [
             { }, # missing fields
             { "status" : "blah" }, # invalid enum
             { "status" : "ok", "message" : 1 }, # invalid type
@@ -193,10 +144,10 @@ class RuntimeTest(unittest.TestCase):
         batch.UserService.create(newUser(userId="2", email="foo@bar.com"))
         batch.UserService.countUsers()
         results = batch.send()
-        self.assertEquals(3, len(results))
-        self.assertEquals(results[0].result["message"], "user created")
-        self.assertEquals(results[1].result["message"], "user created")
-        self.assertEquals(2, results[2].result["count"])
+        self.assertEqual(3, len(results))
+        self.assertEqual(results[0].result["message"], "user created")
+        self.assertEqual(results[1].result["message"], "user created")
+        self.assertEqual(2, results[2].result["count"])
 
     def _test_bench(self):
         start = time.time()
@@ -206,7 +157,7 @@ class RuntimeTest(unittest.TestCase):
             self.client.UserService.countUsers()
             num += 1
         elapsed = time.time() - start
-        print "test_bench: num=%d microsec/op=%d" % (num, (elapsed*1000000)/num)
+        print("test_bench: num=%d microsec/op=%d" % (num, (elapsed*1000000)/num))
 
         start = time.time()
         stop = start+1
@@ -215,8 +166,7 @@ class RuntimeTest(unittest.TestCase):
             self.client.UserService.create(newUser())
             num += 1
         elapsed = time.time() - start
-        print "test_bench: num=%d microsec/op=%d" % (num, (elapsed*1000000)/num)
+        print("test_bench: num=%d microsec/op=%d" % (num, (elapsed*1000000)/num))
 
 if __name__ == "__main__":
     unittest.main()
-

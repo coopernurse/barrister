@@ -7,10 +7,7 @@ import sys
 import tempfile
 import subprocess
 import os
-try:
-    import json
-except:
-    import simplejson as json
+import json
 
 def wrap_exec(name, cmd):
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
@@ -18,13 +15,18 @@ def wrap_exec(name, cmd):
     out, err = proc.communicate()
     for line in out.split("\n"):
         if line:
-            print "[%s out] %s" % (name, line)
+            print("[%s out] %s" % (name, line))
     for line in err.split("\n"):
         if line:
-            print "[%s err] %s" % (name, line)
+            print("[%s err] %s" % (name, line))
     return proc.poll()
 
 if __name__ == "__main__":
+    # Bail out if running on Python3 as Plex not yet supported
+    if sys.version_info >= (3, 0):
+        print("Sorry, requires Python 2.x, not Python 3.x")
+        sys.exit(1)
+
     parser = optparse.OptionParser("usage: %prog [options] [idl filename]")
     parser.add_option("-i", "--stdin", dest="stdin", action="store_true",
                       default=False, help="Read IDL from STDIN")
@@ -49,13 +51,15 @@ if __name__ == "__main__":
     (options, args) = parser.parse_args()
 
     if options.version:
-        print "barrister %s" % __version__
+        print("barrister %s" % __version__)
         sys.exit(0)
+
+    if not options.stdin and len(args) == 0:
+        parser.error("Incorrect number of args")
+        sys.exit(1)
 
     if options.stdin:
         parsed = parse(sys.stdin.read())
-    elif len(args) < 1:
-        parser.error("Incorrect number of args")
     else:
         f = open(args[0])
         parsed = parse(f, args[0])
@@ -79,8 +83,8 @@ if __name__ == "__main__":
             cmd.extend(options.dotargs.split(" "))
         cmd.append(fname)
         if wrap_exec("graphviz", cmd) != 0:
-            print "Error running Graphviz dot. Is it installed?"
-            print "Command: %s" % str(cmd)
+            print("Error running Graphviz dot. Is it installed?")
+            print("Command: %s" % str(cmd))
             os.unlink(fname)
             sys.exit(1)
         os.unlink(fname)
@@ -90,4 +94,4 @@ if __name__ == "__main__":
         f.write(json.dumps(parsed))
         f.close()
     else:
-        print json.dumps(parsed)
+        print(json.dumps(parsed))

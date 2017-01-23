@@ -1,0 +1,46 @@
+
+struct User {
+    userId string
+    password string
+    email string
+    emailVerified bool
+    dateCreated int
+    age float [optional]
+}
+
+enum Status {
+    ok
+    invalid
+    error
+}
+
+struct Response {
+    status Status
+    message string
+}
+
+struct CountResponse extends Response {
+    count int
+}
+
+struct CreateUserResponse extends Response {
+    userId string
+}
+
+struct UserResponse extends Response {
+    user User
+}
+
+struct UsersResponse extends Response {
+    users []User
+}
+
+interface UserService {
+    get(userId string) UserResponse
+    create(user User) CreateUserResponse
+    update(user User) Response
+    validateEmail(userId string) Response
+    changePassword(userId string, oldPass string, newPass string) Response
+    countUsers() CountResponse
+    getAll(userIds []string) UsersResponse
+}
