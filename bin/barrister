@@ -43,6 +43,8 @@ if __name__ == "__main__":
     parser.add_option("-j", "--json", dest="json",
                       default=None, type="string",
                       help="File to write contract JSON to (defaults to STDOUT)")
+    parser.add_option("-n", "--nometa", dest="add_meta", action="store_false", default=True,
+                      help="Do not include meta information in the contract JSON")
     parser.add_option("-v", "--version", dest="version",
                       default=False, action="store_true",
                       help="Print version")
@@ -53,12 +55,12 @@ if __name__ == "__main__":
         sys.exit(0)
 
     if options.stdin:
-        parsed = parse(sys.stdin.read())
+        parsed = parse(sys.stdin.read(), add_meta=options.add_meta)
     elif len(args) < 1:
         parser.error("Incorrect number of args")
     else:
         f = open(args[0])
-        parsed = parse(f, args[0])
+        parsed = parse(f, args[0], add_meta=options.add_meta)
         f.close()
 
     if options.docco:
