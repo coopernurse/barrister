@@ -4,7 +4,7 @@
 okIdl=("project2.idl" "ok-service.idl" "including-notifications.idl")
 
 # files that should not parse
-badIdl=("project-with-ns.idl" "broken1.idl" "invalid-service.idl" "bad-circle.idl")
+badIdl=("project-with-ns.idl" "broken1.idl" "invalid-service.idl" "bad-circle.idl" "project_broken.idl")
 
 for item in ${okIdl[*]}
 do

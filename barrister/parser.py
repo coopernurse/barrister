@@ -174,6 +174,8 @@ class IdlScanner(Scanner):
                 scanner = IdlScanner(idl_text, path_to_load)
                 self.imports[path_to_load] = scanner
                 scanner.parse(validate=True)
+                for err in scanner.errors:
+                    self.add_error(err)
                 for elem in scanner.parsed:
                     if elem["type"] == "struct" or elem["type"] == "enum":
                         if self.types.has_key(elem["name"]):
@@ -257,7 +259,7 @@ class IdlScanner(Scanner):
         if self.firstPass:
             name    = s["name"]
             extends = s["extends"]
-             
+
             if extends in native_types:
                 self.add_error("%s cannot extend %s" % (name, extends))
             elif self.firstPass.types.has_key(extends):

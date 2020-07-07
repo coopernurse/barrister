@@ -1,0 +1,12 @@
+
+import "common.idl"
+import "broken_common.idl"
+
+struct Project {
+   name string
+   foo broken.DesignGroupCriteria
+}
+
+interface ProjectSvc {
+    getProject() Project
+}

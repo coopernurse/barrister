@@ -1,0 +1,19 @@
+namespace broken
+
+import "common.idl"
+
+struct DesignGroupSet {
+    id                      int
+    name                    string
+    defaultDesignGroupId    int         [optional]
+    criteria                []design.DesignGroupCriteria
+}
+
+struct DesignGroupCriteria {
+    // id is only optional on insert
+    id                  int     [optional]
+}
+
+struct DesignEntryHostOptions extends HostOptions {
+    distributeExternally    bool
+}
