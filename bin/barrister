@@ -18,10 +18,10 @@ def wrap_exec(name, cmd):
     out, err = proc.communicate()
     for line in out.split("\n"):
         if line:
-            print "[%s out] %s" % (name, line)
+            print("[%s out] %s" % (name, line))
     for line in err.split("\n"):
         if line:
-            print "[%s err] %s" % (name, line)
+            print("[%s err] %s" % (name, line))
     return proc.poll()
 
 if __name__ == "__main__":
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     (options, args) = parser.parse_args()
 
     if options.version:
-        print "barrister %s" % __version__
+        print("barrister %s" % __version__)
         sys.exit(0)
 
     if options.stdin:
@@ -79,8 +79,8 @@ if __name__ == "__main__":
             cmd.extend(options.dotargs.split(" "))
         cmd.append(fname)
         if wrap_exec("graphviz", cmd) != 0:
-            print "Error running Graphviz dot. Is it installed?"
-            print "Command: %s" % str(cmd)
+            print("Error running Graphviz dot. Is it installed?")
+            print("Command: %s" % str(cmd))
             os.unlink(fname)
             sys.exit(1)
         os.unlink(fname)
@@ -90,4 +90,4 @@ if __name__ == "__main__":
         f.write(json.dumps(parsed))
         f.close()
     else:
-        print json.dumps(parsed)
+        print(json.dumps(parsed))

@@ -220,11 +220,11 @@ def format_type(t, includeOptional=True):
         The type as a dict. Keys: 'type', 'is_array'
     """
     s = ""
-    if t.has_key('is_array') and t['is_array']:
+    if 'is_array' in t and t['is_array']:
         s = "[]%s" % t['type']
     else:
         s = t['type']
-    if includeOptional and t.has_key('optional') and t['optional'] == True:
+    if includeOptional and 'optional' in t and t['optional'] == True:
         s += " [optional]"
     return s
 
@@ -338,12 +338,12 @@ def parse_struct(s):
 
     i = 0
     for v in s["fields"]:
-        if v.has_key('comment') and v['comment']:
+        if 'comment' in v and v['comment']:
             if i > 0: code += "\n"
             for line in v['comment'].split("\n"):
                 code += '    <span class="c1">// %s</span>\n' % line
         opt = ""
-        if v.has_key('optional') and v['optional'] == True:
+        if 'optional' in v and v['optional'] == True:
           opt = " [optional]"
         code += formatstr % (string.ljust(v['name'], namelen), string.ljust(format_type(v, includeOptional=False), typelen), opt)
         i += 1
@@ -370,7 +370,7 @@ def parse_interface(iface):
             else: func_code += ", "
             func_code += '<span class="na">%s</span> <span class="kt">%s</span>' % (p['name'], format_type(p))
         func_code += ') <span class="kt">%s</span>\n' % format_type(v['returns'])
-        if v.has_key('comment') and v['comment']:
+        if 'comment' in v and v['comment']:
             if code:
                 sections.append(to_section(docs, code))
             docs = v['comment']
@@ -448,4 +448,4 @@ if __name__ == "__main__":
         f.close()
 
     idl_parsed = json.loads(j)
-    print docco_html(options.title, idl_parsed)
+    print(docco_html(options.title, idl_parsed))

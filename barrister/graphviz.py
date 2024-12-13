@@ -15,13 +15,13 @@
 
 def type_str(type_dict):
     s = type_dict['type']
-    if type_dict.has_key('is_array') and type_dict['is_array']:
+    if 'is_array' in type_dict and type_dict['is_array']:
         s = s + "[]"
     return s
 
 def struct_dot(struct):
     extends = ""
-    if struct.has_key("extends") and struct["extends"]:
+    if "extends" in struct and struct["extends"]:
         extends = "%s -> %s" % (struct["name"], struct["extends"])
         
     label = "%s|" % struct["name"]
@@ -84,7 +84,7 @@ def to_dotfile(parsed_idl):
         
         """
     for entity in parsed_idl:
-        if entity.has_key("type"):
+        if "type" in entity:
             t = entity["type"]
             if t == "struct":
                 dot += "\n" + struct_dot(entity)

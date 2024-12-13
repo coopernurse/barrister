@@ -26,7 +26,7 @@ def get_and_log_result(iface, func, params, result, error):
     if error != None:
         status = "rpcerr"
         resp = error.code
-        print "RPCERR: %s" % error.msg
+        print("RPCERR: %s" % error.msg)
 
     out.write("%s|%s|%s|%s|%s\n" % (iface, func, params, status, json.dumps(resp)))
     out.flush()

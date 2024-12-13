@@ -66,7 +66,7 @@ interface UserService {
 """
 
 def newUser(userId="abc123", email=None):
-    return { "userId" : userId, "password" : u"pw", "email" : email,
+    return { "userId" : userId, "password" : "pw", "email" : email,
       "emailVerified" : False, "dateCreated" : 1, "age" : 3.3 }
 
 def now_millis():
@@ -133,10 +133,10 @@ class RuntimeTest(unittest.TestCase):
         resp = svc.create(user)
         self.assertTrue(resp["userId"])
         user2 = svc.get(resp["userId"])["user"]
-        self.assertEquals(user["email"], user2["email"])
+        self.assertEqual(user["email"], user2["email"])
         self.assertTrue(user["dateCreated"] > 0)
-        self.assertEquals("ok", svc.changePassword("123", "oldpw", "newpw")["status"])
-        self.assertEquals(1, svc.countUsers()["count"])
+        self.assertEqual("ok", svc.changePassword("123", "oldpw", "newpw")["status"])
+        self.assertEqual(1, svc.countUsers()["count"])
         svc.getAll([])
 
     def test_invalid_req(self):
@@ -193,10 +193,10 @@ class RuntimeTest(unittest.TestCase):
         batch.UserService.create(newUser(userId="2", email="foo@bar.com"))
         batch.UserService.countUsers()
         results = batch.send()
-        self.assertEquals(3, len(results))
-        self.assertEquals(results[0].result["message"], "user created")
-        self.assertEquals(results[1].result["message"], "user created")
-        self.assertEquals(2, results[2].result["count"])
+        self.assertEqual(3, len(results))
+        self.assertEqual(results[0].result["message"], "user created")
+        self.assertEqual(results[1].result["message"], "user created")
+        self.assertEqual(2, results[2].result["count"])
 
     def _test_bench(self):
         start = time.time()
@@ -206,7 +206,7 @@ class RuntimeTest(unittest.TestCase):
             self.client.UserService.countUsers()
             num += 1
         elapsed = time.time() - start
-        print "test_bench: num=%d microsec/op=%d" % (num, (elapsed*1000000)/num)
+        print("test_bench: num=%d microsec/op=%d" % (num, (elapsed*1000000)/num))
 
         start = time.time()
         stop = start+1
@@ -215,7 +215,7 @@ class RuntimeTest(unittest.TestCase):
             self.client.UserService.create(newUser())
             num += 1
         elapsed = time.time() - start
-        print "test_bench: num=%d microsec/op=%d" % (num, (elapsed*1000000)/num)
+        print("test_bench: num=%d microsec/op=%d" % (num, (elapsed*1000000)/num))
 
 if __name__ == "__main__":
     unittest.main()
