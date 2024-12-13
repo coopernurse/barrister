@@ -5,7 +5,7 @@ import time
 import threading
 import unittest
 import os
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import codecs
 try:
     import json
@@ -15,7 +15,7 @@ except:
 # Barrister conformance test runner
 
 def env_get(envkey, defval):
-    if os.environ.has_key(envkey):
+    if envkey in os.environ:
         return os.environ[envkey]
     else:
         return defval
@@ -57,11 +57,11 @@ clients = [
     [ "go-client", ["%s/conform/client" % barrister_go ] ]
 ]
 
-verbose = os.environ.has_key('CONFORM_VERBOSE')
+verbose = 'CONFORM_VERBOSE' in os.environ
 
 def log(msg):
     if verbose:
-        print msg.strip()
+        print(msg.strip())
 
 class Runner(threading.Thread):
 
@@ -138,16 +138,16 @@ class ConformTest(unittest.TestCase):
         invalid = [ "{", "[", "--" ]
         for s in invalid:
             data = """{ "jsonrpc": "2.0", "method": "foo", "params": %s }""" % s
-            req = urllib2.Request("http://localhost:9233/", data, headers)
-            f = urllib2.urlopen(req)
+            req = urllib.request.Request("http://localhost:9233/", data, headers)
+            f = urllib.request.urlopen(req)
             json_resp = f.read()
             f.close()
             try:
                 resp = json.loads(json_resp)
             except:
-                print "Unable to parse: %s" % json_resp
+                print("Unable to parse: %s" % json_resp)
                 raise
-            self.assertEquals(resp["error"]["code"], -32700, "Fail using invalid JSON: %s" % s)
+            self.assertEqual(resp["error"]["code"], -32700, "Fail using invalid JSON: %s" % s)
 
     def _test_server(self, sleep_time, s_name, s_cmd, cwd=None):
         errs = [ ]
@@ -167,7 +167,7 @@ class ConformTest(unittest.TestCase):
             self._test_invalid_json()
 
             for c_name, c_cmd in clients:
-                print "Testing client '%s' vs server '%s'" % (c_name, s_name)
+                print("Testing client '%s' vs server '%s'" % (c_name, s_name))
                 outfile = "%s-to-%s.out" % (c_name, s_name)
                 c_cmd_cpy = c_cmd[:]
                 c_cmd_cpy.extend([infile, outfile])
@@ -214,5 +214,5 @@ class ConformTest(unittest.TestCase):
             
 if __name__ == "__main__":
     if not verbose:
-        print "Verbose output disabled. To enable: export CONFORM_VERBOSE=1"
+        print("Verbose output disabled. To enable: export CONFORM_VERBOSE=1")
     unittest.main()

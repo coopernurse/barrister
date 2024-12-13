@@ -12,7 +12,7 @@ import os.path
 import time
 import copy
 import operator
-import cStringIO
+import io
 from plex import Scanner, Lexicon, Str, State, IGNORE
 from plex import Begin, Any, AnyBut, AnyChar, Range, Rep
 try:
@@ -23,7 +23,7 @@ except:
 def md5(s):
     try:
         import hashlib
-        return hashlib.md5(s).hexdigest()
+        return hashlib.md5(s.encode('utf-8')).hexdigest()
     except:
         import md5
         return md5.new(s).hexdigest()
@@ -46,7 +46,7 @@ namespace       = Str("namespace") + Rep(space_tab) + plain_ident
 import_stmt     = Str("import") + Rep(space_tab) + Str('"') + Rep(AnyBut("\"\r\n")) + Str('"')
 
 def file_paths(fname, search_path=None):
-    if not search_path and os.environ.has_key("BARRISTER_PATH"):
+    if not search_path and "BARRISTER_PATH" in os.environ:
         search_path = os.environ["BARRISTER_PATH"]
     paths = []
     paths.append(fname)
@@ -56,7 +56,7 @@ def file_paths(fname, search_path=None):
     return paths
 
 def parse(idl_text, idlFilename=None, validate=True, add_meta=True):
-    if not isinstance(idl_text, (str, unicode)):
+    if not isinstance(idl_text, str):
         idl_text = idl_text.read()
 
     scanner = IdlScanner(idl_text, idlFilename)
@@ -124,7 +124,7 @@ class IdlParseException(Exception):
 class IdlScanner(Scanner):
     
     def __init__(self, idl_text, name):
-        f = cStringIO.StringIO(idl_text)
+        f = io.StringIO(idl_text)
         Scanner.__init__(self, self.lex, f, name)
         self.parsed = [ ]
         self.errors = [ ]
@@ -138,7 +138,7 @@ class IdlScanner(Scanner):
         self.name = name
         if name:
             searchPath = os.path.dirname(os.path.abspath(name))
-            if os.environ.has_key('BARRISTER_PATH'):
+            if 'BARRISTER_PATH' in os.environ:
                 searchPath = searchPath + os.pathsep + os.environ['BARRISTER_PATH']
             self.searchPath = searchPath
 
@@ -167,7 +167,7 @@ class IdlScanner(Scanner):
                 path_to_load = path
                 break
         if path_to_load:
-            if not self.imports.has_key(path_to_load):
+            if path_to_load not in self.imports:
                 f = open(path_to_load)
                 idl_text = f.read()
                 f.close()
@@ -178,7 +178,7 @@ class IdlScanner(Scanner):
                     self.add_error(err)
                 for elem in scanner.parsed:
                     if elem["type"] == "struct" or elem["type"] == "enum":
-                        if self.types.has_key(elem["name"]):
+                        if elem["name"] in self.types:
                             c1 = elem_checksum(self.types[elem["name"]])
                             c2 = elem_checksum(elem)
                             if c1 != c2:
@@ -231,7 +231,7 @@ class IdlScanner(Scanner):
 
         if cur_type in native_types or cur_type in types:
             pass
-        elif not self.types.has_key(cur_type):
+        elif cur_type not in self.types:
             return "undefined type: %s" % cur_type
         else:
             cur = self.types[cur_type]
@@ -262,7 +262,7 @@ class IdlScanner(Scanner):
 
             if extends in native_types:
                 self.add_error("%s cannot extend %s" % (name, extends))
-            elif self.firstPass.types.has_key(extends):
+            elif extends in self.firstPass.types:
                 ext_type = self.firstPass.types[extends]
                 if ext_type["type"] != "struct":
                     fs = (name, ext_type["type"], extends)
@@ -286,7 +286,7 @@ class IdlScanner(Scanner):
                 self.add_error("cycle detected in struct: %s" % s["name"])
                     
     def get_parent_fields(self, s, names, types):
-        if self.types.has_key(s["extends"]):
+        if s["extends"] in self.types:
             if s["name"] not in types:
                 types.append(s["name"])
                 parent = self.types[s["extends"]]
@@ -300,7 +300,7 @@ class IdlScanner(Scanner):
     def get_struct_field_types(self, struct, types):
         for f in struct["fields"]:
             type_name = self.strip_array_chars(f["type"])
-            if self.types.has_key(type_name) and not type_name in types:
+            if type_name in self.types and not type_name in types:
                 t = self.types[type_name]
                 if t["type"] == "struct":
                     if not f["is_array"] and not f["optional"]:
@@ -310,7 +310,7 @@ class IdlScanner(Scanner):
                     types.append(type_name)
         if struct["extends"] != "":
             type_name = struct["extends"]
-            if self.types.has_key(type_name) and not type_name in types:
+            if type_name in self.types and not type_name in types:
                 t = self.types[type_name]
                 if t["type"] == "struct":
                     types.append(type_name)
@@ -356,7 +356,7 @@ class IdlScanner(Scanner):
         self.begin('start-block')
 
     def check_dupe_name(self, name):
-        if self.types.has_key(name):
+        if name in self.types:
             self.add_error("type %s already defined" % name)
 
     def check_not_empty(self, cur, list_name, printable_name):

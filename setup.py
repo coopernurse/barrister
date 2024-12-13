@@ -27,7 +27,7 @@ setup(
     long_description=__doc__,
     install_requires=[
         'Markdown',
-        'plex'
+        'plex3'
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
