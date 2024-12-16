@@ -13,8 +13,8 @@ import time
 import copy
 import operator
 import io
-from plex3 import Scanner, Lexicon, Str, State, IGNORE
-from plex3 import Begin, Any, AnyBut, AnyChar, Range, Rep
+from plex import Scanner, Lexicon, Str, State, IGNORE
+from plex import Begin, Any, AnyBut, AnyChar, Range, Rep
 try:
     import json
 except:
