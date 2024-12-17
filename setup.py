@@ -27,7 +27,7 @@ setup(
     long_description=__doc__,
     install_requires=[
         'Markdown',
-        'plex3'
+        'plex3 @ git+https://github.com/uogbuji/plex3.git'
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
