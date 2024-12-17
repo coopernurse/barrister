@@ -345,7 +345,7 @@ def parse_struct(s):
         opt = ""
         if 'optional' in v and v['optional'] == True:
           opt = " [optional]"
-        code += formatstr % (string.ljust(v['name'], namelen), string.ljust(format_type(v, includeOptional=False), typelen), opt)
+        code += formatstr % (v['name'].ljust(namelen), format_type(v, includeOptional=False).ljust(typelen), opt)
         i += 1
     code += "}"
 
